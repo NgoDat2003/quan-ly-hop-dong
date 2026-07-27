@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > **Tham chiếu chi tiết**: Xem [`.agent/projectRules/frontend-architecture.md`](./.agent/projectRules/frontend-architecture.md) để biết đầy đủ patterns, code samples, và checklists về kiến trúc frontend.
+> **Quy tắc cấp monorepo/tooling** (Docker, .gitignore, vòng đời `plans/`/`docs/journals/`, baseline security): xem [`.agent/projectRules/base-template-conventions.md`](./.agent/projectRules/base-template-conventions.md).
 
 ---
 

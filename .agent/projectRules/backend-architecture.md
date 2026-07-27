@@ -114,6 +114,18 @@ export class AccessControlModule {}
 - [ ] Không dùng `PrismaService` để query trực tiếp bảng thuộc module khác — inject Service đã export
 - [ ] Sau khi đổi DTO/endpoint: chạy `pnpm codegen` để đồng bộ frontend
 
+## Bootstrap Baseline (đã có sẵn, đừng xoá khi refactor)
+
+Những gì `main.ts`/`app.module.ts` đã làm và **lý do bắt buộc phải giữ nguyên**, không phải tuỳ chọn:
+
+- **`import 'dotenv/config'` PHẢI là dòng đầu tiên của `main.ts`.** `ConfigModule.forRoot({isGlobal: true})` chỉ populate `ConfigService`, KHÔNG mutate `process.env` toàn cục cho code đọc trực tiếp (`PrismaService`'s adapter đọc `process.env.DATABASE_URL` trực tiếp). Thiếu dòng này, DB connection string luôn `undefined`, driver `pg` âm thầm fallback về `localhost:5432` mặc định — lỗi chỉ lộ ra khi có 1 Postgres khác vô tình chạy đúng port đó, cực khó debug.
+- **Prisma 7 dùng adapter pattern, không dùng `url` trong `schema.prisma` datasource.** Kết nối DB khai báo qua `@prisma/adapter-pg`'s `PrismaPg` trong `PrismaService` constructor, connection string đọc từ `process.env.DATABASE_URL` (không qua `ConfigService`). Nếu thấy code mẫu cũ dùng `url = env("DATABASE_URL")` trong schema — đó là Prisma <7, không áp dụng ở đây.
+- **`apps/{app}/tsconfig.json` phải tự khai `outDir` tường minh** (vd: `"outDir": "./dist"`), không dựa vào giá trị kế thừa từ `packages/typescript-config/*.json`. Path tương đối trong 1 config được `extends` resolve theo vị trí của chính file đó, không theo file gọi nó (TypeScript issue #29172) — thiếu dòng này, output build lặng lẽ chui vào `packages/typescript-config/dist/` thay vì `apps/{app}/dist/`.
+- **Mọi endpoint hạ tầng (health, metrics...) phải có `@Public()` + `@ApiExcludeEndpoint()`.** Thiếu `@ApiExcludeEndpoint()`, endpoint lọt vào Swagger → Orval tự sinh hook thừa ở frontend cho 1 route không phải domain logic.
+- **`HttpExceptionFilter` dùng `@Catch()` (bắt tất cả), không phải `@Catch(HttpException)`.** Lỗi không phải `HttpException` (vd: lỗi Prisma thật khi hết stub) phải trả `500` generic (`{statusCode: 500, message: 'Internal server error', error: 'Internal Server Error'}`), không bao giờ lộ `error.message`/stack trace thật ra response.
+- **Rate limiting (`@nestjs/throttler`) và security headers (`helmet`) là baseline mặc định**, không phải tính năng tuỳ chọn thêm sau. `ThrottlerModule` đăng ký `imports` TRƯỚC `AccessControlModule` (giả định throttle rẻ hơn chạy trước JWT/permission check — NestJS KHÔNG document đảm bảo thứ tự `APP_GUARD` giữa các module khác nhau, đây là giả định best-effort, không phải guarantee). Nếu app có Swagger UI, `helmet({ contentSecurityPolicy: false })` — CSP mặc định của helmet chặn inline script/style mà Swagger UI cần.
+- **Env validation (`env.schema.ts`, zod) chỉ validate biến app THẬT SỰ đọc**, không copy nguyên schema từ project khác dù project đó "trưởng thành" hơn — biến không dùng chỉ gây confuse. Mọi biến optional phải có default khớp với fallback đã có sẵn trong code, để giữ nguyên khả năng boot khi hoàn toàn không có file `.env`.
+
 ## Common Mistakes to Avoid
 
 | Category            | Don't                                                        | Do                                                                                            |

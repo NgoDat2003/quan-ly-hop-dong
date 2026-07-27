@@ -126,6 +126,23 @@ Mỗi slice độc lập, không import chéo slice khác trực tiếp — mu�
 
 Dùng trực tiếp từ `@/components/ui/*` (sinh qua shadcn CLI, dựa trên Radix UI + Tailwind CSS), không tự dựng lại primitives layer song song.
 
+**`Button` KHÔNG support `asChild`.** Component này wrap `@base-ui/react/button`'s `ButtonPrimitive` trực tiếp, không có composition `Slot`/render-prop như bản Radix mặc định của shadcn. Muốn style 1 `<Link>` như button (vd: nút "Về trang chủ" trong `not-found.tsx`), dùng `buttonVariants({ className })` áp trực tiếp qua `cn()`, không viết `<Button asChild><Link>...</Link></Button>` — sẽ không hoạt động đúng.
+
+## Next.js App Router — Error/Loading Boundaries
+
+`app/error.tsx`, `app/not-found.tsx`, `app/global-error.tsx`, `app/loading.tsx` ở root level là bắt buộc phải có (không phải tuỳ chọn) — thiếu chúng, lỗi runtime chưa bắt sẽ trắng trang không có fallback UI. Next.js tự kế thừa boundary gần nhất xuống cây route, nên chỉ cần đặt ở root cho tới khi có route group thứ 2 cần UI lỗi riêng biệt theo ngữ cảnh.
+
+- `error.tsx`/`global-error.tsx`: bắt buộc `'use client'`, nhận props `{ error, reset }`.
+- `global-error.tsx`: phải tự render `<html>`/`<body>` (thay thế toàn bộ root layout khi kích hoạt) — không dùng được font/`cn()` setup từ `app/layout.tsx` vì nó thay thế chính layout đó.
+- `not-found.tsx`/`loading.tsx`: server component, không có `'use client'`.
+- Tất cả tái dùng `Card`/`Button` từ `@/components/ui/*`, không viết plain text không style.
+
+## Orval Mutator Contract (version-sensitive)
+
+Orval 8.x sinh call theo **fetch-style signature**: `customFetch(url: string, init: RequestInit) => Promise<{ data, status, headers }>` — khác hẳn config-object mutator của Orval version cũ hơn. Nếu nâng cấp/hạ cấp Orval, verify lại contract này trước khi tin code mẫu cũ còn đúng — mismatch không báo lỗi lúc `pnpm codegen`, chỉ vỡ lúc runtime với lỗi khó hiểu kiểu "customFetch is not a function".
+
+**Double envelope khi đọc response:** response thật của API đã có envelope `{statusCode, data}` (từ `TransformInterceptor`), Orval's fetch wrapper bọc thêm 1 lớp `{data, status, headers}` bên ngoài — nên tại call site phải đọc `res.data.data`, không phải `res.data`. Đã ghi chú inline trong `use-auth-actions.ts`, nhắc lại ở đây vì đây là lỗi rất dễ mắc khi viết action hook mới.
+
 ## Shared Components Layer (ngoài `ui/`)
 
 `components/ui/` chỉ chứa primitive sinh bởi shadcn CLI — không nhét component có business logic hoặc compose nhiều primitive vào đây. Khi một component được ≥2 feature dùng chung, đặt vào `components/{nhóm}/` theo mục đích, không dồn hết vào một chỗ phẳng:

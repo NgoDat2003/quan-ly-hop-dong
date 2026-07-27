@@ -66,7 +66,9 @@ docker build -f apps/api/Dockerfile -t training-app-api .
 docker build -f apps/web/Dockerfile -t training-app-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001 .
 ```
 
-**Written but not build/run-tested on a real machine yet** — verify both before relying on them for anything real. They intentionally stop at "produces a runnable image." Neither is wired to a deploy platform (Dokploy, Vercel, K8s, a plain VPS, whatever) — picking and configuring that is the concrete project's job once it knows its actual target, not this base's. `docker-compose.yml` here stays local-dev-only (Postgres only); there is no `docker-compose.prod.yml` and no CI/CD.
+The underlying `next build` (standalone output) and `nest build` have both been verified to succeed — but the `docker build`/`docker run` commands above (actual image build through the Docker daemon) have **not** been run yet on a real machine. Verify both before relying on them for anything real. They intentionally stop at "produces a runnable image." Neither is wired to a deploy platform (Dokploy, Vercel, K8s, a plain VPS, whatever) — picking and configuring that is the concrete project's job once it knows its actual target, not this base's. `docker-compose.yml` here stays local-dev-only (Postgres only); there is no `docker-compose.prod.yml` and no CI/CD.
+
+**Windows note:** `apps/web`'s `output: 'standalone'` requires creating symlinks during `next build`'s trace-collection step. Windows blocks this by default outside Administrator or Developer Mode (Settings → Privacy & Security → For Developers) — enable Developer Mode if `pnpm build` fails with `EPERM: operation not permitted, symlink...`.
 
 ## Common commands
 
