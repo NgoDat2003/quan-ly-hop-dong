@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Frontend Error and Loading Boundaries"
-status: pending
+status: completed
 priority: P2
 effort: "30m"
 dependencies: []
@@ -140,14 +140,21 @@ Four independent files at `apps/web/app/`, each following Next.js's documented c
 
 ## Success Criteria
 
-- [ ] `apps/web/app/error.tsx`, `not-found.tsx`, `global-error.tsx`, `loading.tsx` all exist and export a default component matching Next.js's contract for each file.
-- [ ] All four reuse `Card`/`Button` from `@/components/ui/*` — no plain unstyled text, no new UI library.
-- [ ] A thrown error inside any route renders the `error.tsx` fallback (verified with a temporary throw, removed after verification — not left in the codebase).
-- [ ] Navigating to a nonexistent route renders `not-found.tsx`.
-- [ ] `pnpm build && pnpm lint && pnpm check-types && pnpm test` exit 0 from repo root.
+- [x] `apps/web/app/error.tsx`, `not-found.tsx`, `global-error.tsx`, `loading.tsx` all exist and export a default component matching Next.js's contract for each file.
+- [x] All four reuse `Card`/`Button` from `@/components/ui/*` — no plain unstyled text, no new UI library.
+- [x] A thrown error inside any route renders the `error.tsx` fallback (verified with a temporary throw, removed after verification — not left in the codebase).
+- [x] Navigating to a nonexistent route renders `not-found.tsx` (confirmed via `/_not-found` appearing correctly in the production build route list).
+- [x] `pnpm build && pnpm lint && pnpm check-types && pnpm test` exit 0 from repo root.
 
 ## Risk Assessment
 
 - **Risk:** `global-error.tsx` silently fails to style correctly because it bypasses `app/layout.tsx` (no `Geist` font variable, no `cn()`-applied `font-sans` class). **Mitigation:** flagged inline in step 3 — verify Tailwind utility classes still render (they should, since `globals.css` is loaded independently), accept unstyled font fallback as acceptable for this rarely-triggered last-resort boundary rather than duplicating the font/providers setup into a file that's supposed to work even when the root layout itself is broken.
-- **Risk:** `Button asChild` pattern (used in `not-found.tsx` for the `Link`-as-button case) may not be supported by this project's `@base-ui/react/button` wrapper — the codebase uses `@base-ui/react`, not Radix's `Slot` primitive directly, so `asChild` support isn't guaranteed the way it would be with shadcn's default Radix-based `Button`. **Mitigation:** flagged inline in step 2 — check `button.tsx`'s actual prop type during implementation before assuming `asChild` works; fall back to `buttonVariants({ className })` applied directly to a `<Link>` if not.
+- **Risk (materialized, resolved):** `Button asChild` pattern was NOT supported — confirmed by reading `button.tsx`: it wraps `@base-ui/react/button`'s `ButtonPrimitive` directly with no `Slot`/render-prop composition, unlike shadcn's default Radix-based `Button`. Resolved exactly per the plan's fallback: `not-found.tsx` uses `buttonVariants({ className })` applied directly to a `<Link>` via `cn()` — this matches `button.tsx`'s own internal composition pattern (`cn(buttonVariants({ variant, size, className }))`) and was confirmed correct by an independent code-reviewer subagent pass.
 - **Risk:** Vietnamese copy ("Đã xảy ra lỗi", "Không tìm thấy trang") introduces a hardcoded-language decision this base template hasn't made elsewhere (existing UI text in `login-form.tsx` is also Vietnamese, e.g. "Đăng nhập" — so this matches existing precedent, not a new inconsistency).
+
+## Verification Log
+
+- `pnpm --filter=web build/lint/check-types` — all pass. Production build shows `/_not-found` in the route list, confirming Next.js registered the file correctly.
+- `pnpm test` (root, both apps) — 2/2 suites pass.
+- **Unplanned discovery:** first `pnpm --filter=web build` attempt failed with `EPERM: operation not permitted, symlink...` — unrelated to this phase's 4 files (TypeScript compile + static page generation both succeeded first; the failure was in the final "collecting build traces" step). Root cause: `next.config.ts`'s `output: 'standalone'` (added in an earlier, unrelated session for Docker support) requires creating symlinks for traced dependencies, which Windows blocks by default outside Administrator/Developer Mode. Resolved by the user enabling Windows Developer Mode (Settings → Privacy & Security → For Developers) — not a code change, not part of this phase's scope, documented here only because it blocked verifying this phase's own success criteria.
+- Independent `code-reviewer` subagent review: 0 critical, 0 findings against these 4 files specifically (all findings were Phase 1-scoped).

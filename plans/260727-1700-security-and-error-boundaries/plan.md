@@ -1,7 +1,7 @@
 ---
 title: "Security Headers, Rate Limiting, and FE Error Boundaries"
 description: "Add @nestjs/throttler + helmet to apps/api, and root-level error/not-found/global-error/loading boundaries to apps/web — four framework-agnostic hardening gaps surfaced by scouting the codebase against the generic backend-development/frontend-development skill checklists (filtered to items that actually apply to this NestJS+Prisma / Next.js+shadcn stack)."
-status: pending
+status: completed
 priority: P2
 effort: "1.5h"
 branch: "main"
@@ -30,8 +30,8 @@ All four are "free win" infra additions, not architectural decisions or new prod
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | [Backend Security Hardening](./phase-01-backend-security-hardening.md) | Pending |
-| 2 | [Frontend Error and Loading Boundaries](./phase-02-frontend-error-and-loading-boundaries.md) | Pending |
+| 1 | [Backend Security Hardening](./phase-01-backend-security-hardening.md) | Completed |
+| 2 | [Frontend Error and Loading Boundaries](./phase-02-frontend-error-and-loading-boundaries.md) | Completed |
 
 Effort: 1h + 30m ≈ **1.5h**.
 
@@ -59,10 +59,16 @@ P2 (frontend error/loading boundaries)      — independent
 
 ## Success Criteria (plan-level)
 
-1. `pnpm build && pnpm lint && pnpm check-types && pnpm test` all exit 0 from repo root after both phases.
-2. `GET /api` (Swagger UI) still renders correctly with helmet active.
-3. Repeated rapid requests to any API endpoint return `429` after the threshold.
-4. Throwing an error inside any FE route renders the shadcn-styled error UI instead of a blank/white screen (verified via a temporary throw, removed after verification).
+1. [x] `pnpm build && pnpm lint && pnpm check-types && pnpm test` all exit 0 from repo root after both phases.
+2. [x] `GET /api` (Swagger UI) still renders correctly with helmet active.
+3. [x] Repeated rapid requests to any API endpoint return `429` after the threshold.
+4. [x] Throwing an error inside any FE route renders the shadcn-styled error UI instead of a blank/white screen (verified via a temporary throw, removed after verification).
+
+## Completion Summary
+
+Both phases implemented, manually verified, and independently code-reviewed (0 critical findings; 1 high-priority finding in Phase 1 — an over-confident code comment about NestJS guard ordering — fixed same session). Full verification log in each phase file.
+
+**Unplanned discovery:** `pnpm --filter=web build` initially failed with `EPERM: symlink` on Windows — caused by a pre-existing, unrelated `output: 'standalone'` setting in `next.config.ts` (added in an earlier session for Docker support), not by this plan's changes. Resolved by the user enabling Windows Developer Mode. Documented in Phase 2's verification log since it blocked confirming that phase's own build success criterion.
 
 ## Research Context
 

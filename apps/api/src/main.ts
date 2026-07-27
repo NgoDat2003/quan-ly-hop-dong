@@ -10,12 +10,17 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // CSP disabled: Swagger UI (mounted at /api below) relies on inline
+  // scripts/styles that helmet's default CSP blocks. All other helmet
+  // headers (HSTS, X-Content-Type-Options, etc.) stay active.
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
