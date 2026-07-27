@@ -1,0 +1,58 @@
+# Dependencies
+node_modules
+**/node_modules
+.pnp
+.pnp.js
+
+# Build output (regenerated inside the image)
+.next
+**/.next
+dist
+**/dist
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Prisma client is gitignored and regenerated inside apps/api/Dockerfile
+apps/api/src/generated
+
+# Cache
+.turbo
+**/.turbo
+.cache
+**/.cache
+
+# Env (never bake secrets into an image layer)
+.env
+.env.*
+!.env.example
+!apps/*/.env.local.example
+
+# Git / CI / editors
+.git
+.gitignore
+.github
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Tests / coverage
+coverage
+**/coverage
+test-results
+
+# Docs / plans / local agent files — irrelevant to the build
+docs
+plans
+CLAUDE.md
+AGENTS.md
+.claude
+.agent
+README.md
+**/README.md

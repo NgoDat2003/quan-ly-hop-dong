@@ -1,0 +1,24 @@
+{
+  "name": "training-app",
+  "private": true,
+  "packageManager": "pnpm@11.2.2",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "codegen": "pnpm codegen:api && pnpm codegen:web",
+    "codegen:api": "pnpm --filter=api openapi:generate",
+    "codegen:web": "pnpm --filter=web codegen"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0"
+  }
+}

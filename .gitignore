@@ -1,0 +1,80 @@
+node_modules
+.next
+.env
+.env.local
+
+# Regenerable artifact - see docker/openapi generation docs. Un-ignore + commit
+# instead if CI ever needs it without a live DB.
+apps/api/openapi.json
+
+# NOTE: apps/web/lib/api/generated/ is intentionally NOT ignored.
+# Orval output is committed on purpose so a fresh clone type-checks
+# without a database. Do not "tidy" it into this file.
+# Dependencies
+.pnp
+.pnp.js
+
+# Local environment
+.env.*
+!/.env.example
+!/apps/web/.env.local.example
+
+# Build and generated outputs
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Tool caches
+.turbo/
+.pnpm-store/
+.vercel/
+.cache/
+
+# Local Python / document tooling
+.venv/
+.venv-*/
+.venv*/
+.codex-spreadsheet/
+output/
+outputs/
+
+# Local-only docs and generated test artifacts
+docs/
+tmp/
+test-results/
+# Documentation stays local; only the root technical README is tracked
+# *.md
+*.docx
+*.xlsx
+*.pdf
+*.rar
+!/README.md
+
+# Local agent/workspace guidance, not source
+CLAUDE.md
+AGENTS.md
+**/MENU.md
+.claude/*
+!.claude/templates/
+
+# Local Claude Code config + hooks (personal, not committed)
+.claude/settings.local.json
+.claude/hooks/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+*.pem
+
+# Prisma-generated client (Prisma 7 custom output) — regenerable from
+# schema.prisma via `pnpm --filter=api prisma:generate`, not committed.
+# Unlike apps/web/lib/api/generated/ (Orval), this one IS gitignored.
+apps/api/src/generated/

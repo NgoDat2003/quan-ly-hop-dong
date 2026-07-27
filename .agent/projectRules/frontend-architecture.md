@@ -34,10 +34,11 @@ Hook action colocate trong `features/{feature}/hooks/` — không đặt ở `ho
 ## Ví dụ: trước/sau tách action
 
 **Trước (bẩn — action trộn trong component):**
+
 ```tsx
 // app/(app)/{feature}/page.tsx
 export default function FeaturePage() {
-  const { data } = useFeatureListFeatures();       // Orval-generated hook
+  const { data } = useFeatureListFeatures(); // Orval-generated hook
   const createMutation = useFeatureCreateFeature(); // Orval-generated hook
 
   const handleCreate = async (values) => {
@@ -51,13 +52,14 @@ export default function FeaturePage() {
     }
   };
 
-  const columns = [ /* nhiều dòng định nghĩa cột trộn trong component */ ];
+  const columns = [/* nhiều dòng định nghĩa cột trộn trong component */];
 
   return <DataTable columns={columns} onCreate={handleCreate} data={data} />;
 }
 ```
 
 **Sau (sạch — action tách riêng):**
+
 ```tsx
 // features/feature/hooks/use-feature-actions.ts
 export function useFeatureActions() {
@@ -79,37 +81,90 @@ export function useFeatureActions() {
   return { createItem, isCreating: createMutation.isPending };
 }
 ```
+
 ```tsx
 // features/feature/components/feature-columns.ts
-export const featureColumns: ColumnDef<FeatureListItemDto>[] = [ /* định nghĩa cột tách riêng */ ];
+export const featureColumns: ColumnDef<FeatureListItemDto>[] = [/* định nghĩa cột tách riêng */];
 ```
+
 ```tsx
 // app/(app)/{feature}/page.tsx — giờ chỉ render
 export default function FeaturePage() {
   const { data } = useFeatureListFeatures();
   const { createItem, isCreating } = useFeatureActions();
 
-  return <FeatureList data={data} columns={featureColumns} onCreate={createItem} loading={isCreating} />;
+  return (
+    <FeatureList data={data} columns={featureColumns} onCreate={createItem} loading={isCreating} />
+  );
 }
 ```
 
 ## Nếu dùng thêm state library (Zustand/Redux)
 
 Chỉ thêm khi feature thật sự cần state chia sẻ phức tạp ngoài server cache. Khi đó áp dụng **Pure Store**:
+
 - Store CHỈ chứa state + reducer, KHÔNG side-effect (toast/API call/console.log) bên trong action.
 - Side-effect vẫn nằm trong `features/{feature}/hooks/use-{feature}-actions.ts` gọi store action, không đặt trong store.
-- Nếu store vượt 300 dòng, tách slice: `store/{domain}/{domain.slice.ts,.selectors.ts,.types.ts}`.
+- Nếu store vượt 300 dòng, tách slice theo domain, mỗi slice tự chứa type + selector riêng:
+
+```
+store/
+├── index.ts                     # Re-export toàn bộ: provider, hooks, types, slices
+├── store-provider.tsx           # Context provider tạo store instance
+├── hooks.ts                     # useStore/useStoreApi
+└── slices/
+    ├── index.ts                 # Barrel export tất cả slice
+    └── {domain}/                # vd: cart/, tabs/, ui/
+        ├── {domain}-slice.ts    # State + actions (reducer thuần, không side-effect)
+        ├── {domain}-selectors.ts # Selector thuần để đọc state, tránh re-render thừa
+        └── {domain}-types.ts    # Type riêng của slice này
+```
+
+Mỗi slice độc lập, không import chéo slice khác trực tiếp — muốn kết hợp state từ nhiều slice thì làm ở tầng selector hoặc hook gọi `useStore`, không ở tầng slice.
 
 ## shadcn/ui Components
 
 Dùng trực tiếp từ `@/components/ui/*` (sinh qua shadcn CLI, dựa trên Radix UI + Tailwind CSS), không tự dựng lại primitives layer song song.
+
+## Shared Components Layer (ngoài `ui/`)
+
+`components/ui/` chỉ chứa primitive sinh bởi shadcn CLI — không nhét component có business logic hoặc compose nhiều primitive vào đây. Khi một component được ≥2 feature dùng chung, đặt vào `components/{nhóm}/` theo mục đích, không dồn hết vào một chỗ phẳng:
+
+```
+components/
+├── ui/            # shadcn primitives — CHỈ sinh qua CLI, không tự viết tay
+├── common/        # Widget nhỏ tái dùng, không gắn 1 feature cụ thể (vd: date-picker tuỳ biến, loading-spinner)
+├── table/         # Helper dùng chung cho TanStack Table (pagination, column-header, table-dialog)
+├── dialog/        # Dialog tái dùng ở nhiều feature (vd: confirm-dialog dùng chung)
+└── search-input/  # Input tìm kiếm domain (vd: search-user-input) — dùng lại ở ≥2 feature nhưng chưa đủ lớn để thành feature riêng
+```
+
+Quy tắc quyết định: component chỉ 1 feature dùng → đặt trong `features/{feature}/components/`. Component ≥2 feature dùng nhưng không phải shadcn primitive → đặt vào nhóm phù hợp trong `components/`. Đừng tạo nhóm mới nếu chỉ có 1 file — gộp vào `common/` cho đến khi đủ 2-3 file cùng chủ đề mới tách nhóm riêng.
+
+## Dialog phức tạp trong feature
+
+Dialog riêng của 1 feature nhưng đủ phức tạp (nhiều sub-component, form riêng) — co-locate trong subfolder thay vì 1 file lẻ trong `components/`:
+
+```
+features/{feature}/components/dialog/{ten-dialog}/
+├── {ten-dialog}.tsx
+├── {ten-dialog}-form.tsx        # Nếu form tách riêng được
+└── use-{ten-dialog}-actions.ts  # Side-effect riêng của dialog, nếu không dùng chung actions hook của feature
+```
 
 ### Form Pattern (react-hook-form + zod + shadcn/ui Form)
 
 ```tsx
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { z } from 'zod';
@@ -129,7 +184,9 @@ export function EntityForm({ onSubmit }: { onSubmit: (dto: CreateEntityDto) => v
           render={({ field }) => (
             <FormItem>
               <FormLabel>Tên</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -172,11 +229,11 @@ import { useFeatureListFeatures, useFeatureCreateFeature } from '@/lib/api/gener
 
 ## Common Mistakes to Avoid
 
-| Category | Don't | Do |
-|----------|-------|-----|
-| **API Contract** | Viết tay DTO/type ở frontend | Dùng type sinh từ `lib/api/generated/model` |
-| **API Contract** | Sửa tay file trong `lib/api/generated/` | Sửa DTO/Swagger ở backend, chạy lại `pnpm codegen` |
-| **Component** | Gọi mutation + toast + invalidate + redirect trực tiếp trong component | Tách vào `features/{feature}/hooks/use-{feature}-actions.ts` |
-| **Component** | Định nghĩa `ColumnDef` dài inline trong page | Tách file `{feature}-columns.ts` riêng |
-| **File size** | File vượt 300 dòng không lý do | Tách theo UI/action/pure-logic; ngoại lệ phải có ghi chú |
-| **Cache** | Quên invalidate sau mutation | `queryClient.invalidateQueries()` trong action hook |
+| Category         | Don't                                                                  | Do                                                           |
+| ---------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **API Contract** | Viết tay DTO/type ở frontend                                           | Dùng type sinh từ `lib/api/generated/model`                  |
+| **API Contract** | Sửa tay file trong `lib/api/generated/`                                | Sửa DTO/Swagger ở backend, chạy lại `pnpm codegen`           |
+| **Component**    | Gọi mutation + toast + invalidate + redirect trực tiếp trong component | Tách vào `features/{feature}/hooks/use-{feature}-actions.ts` |
+| **Component**    | Định nghĩa `ColumnDef` dài inline trong page                           | Tách file `{feature}-columns.ts` riêng                       |
+| **File size**    | File vượt 300 dòng không lý do                                         | Tách theo UI/action/pure-logic; ngoại lệ phải có ghi chú     |
+| **Cache**        | Quên invalidate sau mutation                                           | `queryClient.invalidateQueries()` trong action hook          |

@@ -29,6 +29,7 @@ Không phải module nào cũng cần đủ 3 sub-service — chỉ tách khi th
 ## Ví dụ: trước/sau tách cross-module coupling
 
 **Trước (bẩn — service module này tự query bảng của module khác qua Prisma, xuyên thủng ranh giới):**
+
 ```typescript
 // modules/dashboard/services/dashboard-report.service.ts
 @Injectable()
@@ -38,13 +39,16 @@ export class DashboardReportService {
   async getReport() {
     // ❌ tự query bảng course/user thuộc module khác trực tiếp qua Prisma
     const courses = await this.prisma.course.findMany({ where: { status: 'active' } });
-    const users = await this.prisma.user.findMany({ where: { id: { in: courses.map(c => c.creatorId) } } });
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: courses.map((c) => c.creatorId) } },
+    });
     // đổi schema Course ở module courses có thể âm thầm vỡ dashboard
   }
 }
 ```
 
 **Sau (sạch — inject Service đã export, tôn trọng ranh giới module):**
+
 ```typescript
 // modules/dashboard/dashboard.module.ts
 @Module({
@@ -52,18 +56,19 @@ export class DashboardReportService {
 })
 export class DashboardModule {}
 ```
+
 ```typescript
 // modules/dashboard/services/dashboard-report.service.ts
 @Injectable()
 export class DashboardReportService {
   constructor(
-    private readonly coursesService: CoursesService,  // ✅ Service export của module khác
-    private readonly usersService: UsersService,       // ✅ Service export của module khác
+    private readonly coursesService: CoursesService, // ✅ Service export của module khác
+    private readonly usersService: UsersService, // ✅ Service export của module khác
   ) {}
 
   async getReport() {
     const courses = await this.coursesService.findActive();
-    const users = await this.usersService.findByIds(courses.map(c => c.creatorId));
+    const users = await this.usersService.findByIds(courses.map((c) => c.creatorId));
     // module courses đổi implementation nội bộ (kể cả đổi schema Prisma) không ảnh hưởng dashboard
     // miễn interface public của CoursesService không đổi
   }
@@ -82,6 +87,7 @@ Chỉ nâng cấp lên phức tạp hơn khi có lý do cụ thể, không mặc
 ## Auth & Permissions
 
 Guard đăng ký global qua `AccessControlModule` (đánh dấu `@Global()`), không phải trong `main.ts`:
+
 ```typescript
 // modules/access-control/access-control.module.ts
 @Global()
@@ -110,10 +116,10 @@ export class AccessControlModule {}
 
 ## Common Mistakes to Avoid
 
-| Category | Don't | Do |
-|----------|-------|-----|
-| **Module boundary** | Dùng `PrismaService` query trực tiếp bảng của module khác | Inject Service đã export của module đó |
-| **Service size** | Để service phình to không giới hạn (case thực tế: 3657 dòng) | Tách `-read/-workflow/-shared` khi vượt 500 dòng hoặc >6 dependency |
-| **Controller** | Business logic trong controller | Đặt trong service |
-| **Auth** | `@UseGuards(JwtAuthGuard)` thủ công | Auth đã global qua `AccessControlModule`; dùng `@Public()`/`@RequirePermissions()` |
-| **Events** | Dùng `@OnEvent` cho mọi thứ để "decouple" | Chỉ dùng cho fire-and-forget, nhiều listener độc lập; case cần đồng bộ dùng Service injection |
+| Category            | Don't                                                        | Do                                                                                            |
+| ------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| **Module boundary** | Dùng `PrismaService` query trực tiếp bảng của module khác    | Inject Service đã export của module đó                                                        |
+| **Service size**    | Để service phình to không giới hạn (case thực tế: 3657 dòng) | Tách `-read/-workflow/-shared` khi vượt 500 dòng hoặc >6 dependency                           |
+| **Controller**      | Business logic trong controller                              | Đặt trong service                                                                             |
+| **Auth**            | `@UseGuards(JwtAuthGuard)` thủ công                          | Auth đã global qua `AccessControlModule`; dùng `@Public()`/`@RequirePermissions()`            |
+| **Events**          | Dùng `@OnEvent` cho mọi thứ để "decouple"                    | Chỉ dùng cho fire-and-forget, nhiều listener độc lập; case cần đồng bộ dùng Service injection |
