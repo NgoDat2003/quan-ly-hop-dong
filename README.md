@@ -72,8 +72,8 @@ Một điểm cần lưu ý riêng với phiên bản Orval của base này: cá
 `apps/api/Dockerfile` và `apps/web/Dockerfile` là multi-stage build (pnpm workspace-aware, chạy bằng user non-root) đã sẵn sàng tạo ra image chạy được cho từng app:
 
 ```bash
-docker build -f apps/api/Dockerfile -t training-app-api .
-docker build -f apps/web/Dockerfile -t training-app-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001 .
+docker build -f apps/api/Dockerfile -t create-project-from-template-api .
+docker build -f apps/web/Dockerfile -t create-project-from-template-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001 .
 ```
 
 `next build` (standalone output) và `nest build` bên dưới đã được verify chạy thành công — nhưng lệnh `docker build`/`docker run` ở trên (build image thật qua Docker daemon) **chưa** được chạy thử trên máy thật. Hãy verify cả 2 trước khi dựa vào chúng cho việc gì thật sự quan trọng. Cả 2 chủ đích chỉ dừng lại ở mức "tạo ra được image chạy được". Không cái nào được nối vào 1 nền tảng deploy cụ thể (Dokploy, Vercel, K8s, VPS thuần, hay gì cũng được) — chọn và cấu hình nền tảng đó là việc của dự án cụ thể khi nó biết rõ target thật, không phải việc của base này. `docker-compose.yaml` ở đây chỉ dùng cho local dev (chỉ có Postgres); không có `docker-compose.prod.yaml`, không có CI/CD.

@@ -7,6 +7,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+> [!IMPORTANT]
+> **`create-project-from-template` chỉ là tên placeholder của chính bộ template này — KHÔNG phải tên dự án thật.**
+>
+> Khi repo này được clone ra để bắt đầu 1 dự án mới: **PHẢI** hỏi người dùng tên dự án thật (hoặc suy luận từ ngữ cảnh cuộc trò chuyện nếu đã đủ rõ ràng — vd người dùng đã nói rõ tên sản phẩm), rồi đổi toàn bộ các chỗ sau sang tên đó, không được giữ nguyên `create-project-from-template` hay tên cũ `training-app`:
+> - `package.json` (root) — field `name`
+> - `docker-compose.yaml` — `POSTGRES_DB` và healthcheck `pg_isready -d`
+> - `.env.example` và `.env` thật (nếu đã tạo) — `DATABASE_URL`
+> - `README.md` — docker image tag ví dụ (`-t {ten-du-an}-api`, `-t {ten-du-an}-web`)
+> - Bất kỳ chỗ nào khác còn sót tên cũ — grep `training-app|training_app|create-project-from-template` trước khi coi là xong.
+>
+> Không tự ý bỏ qua bước này chỉ vì "để mặc định cũng chạy được" — tên project rò rỉ ra Docker image tag, database name, và metadata sẽ gây nhầm lẫn khi có nhiều dự án chạy song song trên cùng máy.
+
+---
+
 ## Project Overview
 
 | Property | Value |

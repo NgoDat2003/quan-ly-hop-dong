@@ -5,13 +5,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: training_app
+      POSTGRES_DB: create_project_from_template
     ports:
       - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d training_app"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d create_project_from_template"]
       interval: 5s
       timeout: 5s
       retries: 5

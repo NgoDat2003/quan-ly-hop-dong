@@ -1,5 +1,5 @@
 {
-  "name": "training-app",
+  "name": "create-project-from-template",
   "private": true,
   "packageManager": "pnpm@11.2.2",
   "engines": {
