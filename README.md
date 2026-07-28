@@ -1,21 +1,21 @@
 # Training App — Base Skeleton
 
-> **⚠️ This is a structural skeleton. Do not deploy this anywhere.**
-> Every service method, both auth guards (`JwtAuthGuard`, `PermissionsGuard`), `JwtStrategy.validate()`, and the frontend action hook (`useAuthActions().login`) are stubs. The API has **no real authentication and no real authorization** — both guards currently `return true` unconditionally.
+> **⚠️ Đây là bộ khung cấu trúc (structural skeleton). Không deploy cái này ở bất cứ đâu.**
+> Mọi service method, cả 2 auth guard (`JwtAuthGuard`, `PermissionsGuard`), `JwtStrategy.validate()`, và frontend action hook (`useAuthActions().login`) đều là stub. API **không có auth thật và không có authorization thật** — cả 2 guard hiện tại đều `return true` vô điều kiện.
 
-## What this base contains
+## Base này chứa gì
 
-- A monorepo (Turborepo + pnpm) with `apps/api` (NestJS + Prisma + PostgreSQL) and `apps/web` (Next.js App Router + shadcn/ui).
-- One domain table: `User` (+ `Role` enum). **There is no other domain module.** Adding the first one is the reader's job — see [`apps/api/src/modules/README.md`](./apps/api/src/modules/README.md).
-- A stubbed JWT/access-control layer: guards, decorators, and a `JwtStrategy` are wired but no-op.
-- An envelope-typed contract pipeline: backend DTOs → OpenAPI → Orval → typed frontend hooks.
-- A single screen: `/login`. No dashboard, no register page, no other route.
+- Monorepo (Turborepo + pnpm) gồm `apps/api` (NestJS + Prisma + PostgreSQL) và `apps/web` (Next.js App Router + shadcn/ui).
+- Một bảng domain duy nhất: `User` (+ enum `Role`). **Không có module domain nào khác.** Thêm module đầu tiên là việc của người đọc — xem [`apps/api/src/modules/README.md`](./apps/api/src/modules/README.md).
+- Lớp JWT/access-control dạng stub: guard, decorator, và `JwtStrategy` đã wiring nhưng không làm gì (no-op).
+- Pipeline contract dạng envelope: backend DTO → OpenAPI → Orval → typed frontend hooks.
+- Một màn hình duy nhất: `/login`. Không có dashboard, không có trang đăng ký, không có route nào khác.
 
-## Prerequisites
+## Yêu cầu trước khi chạy
 
 - Node >= 18
 - pnpm
-- **Docker** (for local Postgres)
+- **Docker** (để chạy Postgres local)
 
 ## Setup
 
@@ -29,54 +29,64 @@ pnpm codegen
 pnpm dev
 ```
 
-- API: `http://localhost:3001` — Swagger UI at `http://localhost:3001/api`
-- Web: `http://localhost:3000` — the only screen is `http://localhost:3000/login`
+- API: `http://localhost:3001` — Swagger UI tại `http://localhost:3001/api`
+- Web: `http://localhost:3000` — màn hình duy nhất là `http://localhost:3000/login`
 
-## What is stubbed (read this before filing a bug)
+## Những gì đang là stub (đọc phần này trước khi báo bug)
 
-| Piece                                              | Current behavior                                                   |
-| -------------------------------------------------- | ------------------------------------------------------------------ |
-| `UsersService.findById` / `findByEmail` / `create` | Return `null` / throw `not implemented`                            |
-| `AuthService.login` / `me`                         | Return a hardcoded stub user + `'stub-token'`                      |
-| `JwtAuthGuard.canActivate`                         | `return true` — **every route is open**                            |
-| `PermissionsGuard.canActivate`                     | `return true` — **no permission is ever enforced**                 |
-| `JwtStrategy.validate()`                           | Returns a hardcoded user, never looks one up                       |
-| `hasPermission()`                                  | `return true` unconditionally                                      |
-| `useAuthActions().login` (frontend)                | Calls the real `POST /auth/login` endpoint and discards the result |
+| Phần | Hành vi hiện tại |
+| --- | --- |
+| `UsersService.findById` / `findByEmail` / `create` | Trả `null` / throw `not implemented` |
+| `AuthService.login` / `me` | Trả về 1 user stub hardcode + `'stub-token'` |
+| `JwtAuthGuard.canActivate` | `return true` — **mọi route đều mở** |
+| `PermissionsGuard.canActivate` | `return true` — **không permission nào được kiểm tra** |
+| `JwtStrategy.validate()` | Trả về user hardcode, không tra cứu gì cả |
+| `hasPermission()` | `return true` vô điều kiện |
+| `useAuthActions().login` (frontend) | Gọi thật `POST /auth/login` nhưng bỏ qua kết quả trả về |
 
-**Logging in on `/login` appears to succeed and does nothing.** The request really hits the backend and gets a 200, but no token is stored, no redirect happens, and no toast appears. That is the intended state of this base, not a bug.
+**Đăng nhập ở `/login` trông như thành công nhưng không làm gì cả.** Request thật sự chạm tới backend và nhận về 200, nhưng không token nào được lưu, không redirect, không toast nào hiện lên. Đây là trạng thái chủ đích của base này, không phải bug.
 
-## The one architectural decision worth carrying forward
+### Phần nguy hiểm: không cái nào báo lỗi rõ ràng
 
-Every successful response is enveloped as `{ statusCode, data }` by `TransformInterceptor`, documented via concrete per-endpoint DTO subclasses of `ApiResponseDto` (not the generic `allOf` pattern — see `apps/api/src/modules/README.md` for why, and when to switch). The frontend's fetch mutator (`apps/web/lib/api/http-client.ts`) does **not** unwrap this envelope.
+Mọi stub ở trên đều **chạy thành công**. `JwtAuthGuard.canActivate` trả `true` không throw, không log cảnh báo, không trả 403 — nó chỉ đơn giản cho mọi request đi qua, có auth hay không cũng vậy. Nếu bạn clone base này, thêm 1 module domain thật, guard 1 route bằng `@RequirePermissions('order:delete')`, test bằng Postman và thấy `200` — cái `200` đó không chứng minh được gì cả. Guard sẽ trả về đúng `200` y hệt cho 1 request không hề có token.
 
-One nuance specific to this base's Orval version: the generated react-query hooks wrap every response as `{ data, status, headers }` on top of that envelope, so a call site reads `res.data.data` — the outer `data` is Orval's fetch-client wrapper, the inner `data` is the API's own envelope. This is called out inline in `use-auth-actions.ts`.
+Cái bẫy này còn sâu hơn 1 lớp nữa: khi `JwtAuthGuard` đã được implement thật, `JwtStrategy.validate()` vẫn đang hardcode `role: 'ADMIN'` cho **bất kỳ** JWT hợp lệ nào, bất kể token đó của ai hay user đó có tồn tại hay không. Một route "đúng chuẩn" từ chối request chưa đăng nhập vẫn có thể âm thầm cấp quyền admin cho mọi user đã đăng nhập — và loại lỗi này khó phát hiện hơn nhiều so với cái guard-không-làm-gì ở trên, vì nó trông giống code đang hoạt động với 1 giá trị trả về hợp lý.
 
-## Two rules for every future change
+**Trước khi coi bất kỳ route có auth-guard nào là xong, bạn phải tự tay sửa lại cả 4 chỗ sau:** `JwtAuthGuard.canActivate`, `PermissionsGuard.canActivate`, `JwtStrategy.validate()`, `hasPermission()`. Grep `TODO: implement` trong `modules/access-control/` và `modules/auth/` nếu không chắc chỗ nào vẫn còn là stub.
 
-1. **Never hand-edit `apps/web/lib/api/generated/`.** Change the backend DTO/Swagger, then run `pnpm codegen` from the repo root.
-2. **Adding a backend module** follows [`apps/api/src/modules/README.md`](./apps/api/src/modules/README.md) — there is no scaffolded example to copy, only the live `auth`/`users` modules and that doc.
+Đây là cùng 1 loại lỗi với sự cố `process.env.DATABASE_URL` mà chính base template này từng gặp phải trong lúc xây dựng (xem lịch sử git / commit message) — code chạy được và trả lời thành công không phải là bằng chứng nó làm đúng việc. Một bộ test thật sự kiểm tra ranh giới authorization (chứ không chỉ "endpoint có phản hồi không") là cách kiểm tra thật duy nhất ở đây.
+
+## Quyết định kiến trúc quan trọng nhất cần giữ lại
+
+Mọi response thành công đều được bọc envelope `{ statusCode, data }` bởi `TransformInterceptor`, và được document qua các class DTO envelope cụ thể cho từng endpoint kế thừa `ApiResponseDto` (không dùng pattern `allOf` chung — xem `apps/api/src/modules/README.md` để biết lý do, và khi nào nên chuyển sang pattern đó). Fetch mutator ở frontend (`apps/web/lib/api/http-client.ts`) **không** tự bóc lớp envelope này.
+
+Một điểm cần lưu ý riêng với phiên bản Orval của base này: các hook react-query được generate ra bọc thêm 1 lớp `{ data, status, headers }` bên ngoài lớp envelope kia, nên tại nơi gọi phải đọc `res.data.data` — `data` bên ngoài là wrapper của Orval's fetch-client, `data` bên trong mới là envelope thật của API. Điều này đã được ghi chú inline trong `use-auth-actions.ts`.
+
+## Hai quy tắc cho mọi thay đổi sau này
+
+1. **Không bao giờ sửa tay `apps/web/lib/api/generated/`.** Đổi DTO/Swagger ở backend, sau đó chạy `pnpm codegen` từ gốc repo.
+2. **Thêm module backend mới** theo đúng [`apps/api/src/modules/README.md`](./apps/api/src/modules/README.md) — không có sẵn module mẫu để copy, chỉ có 2 module `auth`/`users` đang sống và tài liệu đó.
 
 ## Docker images
 
-`apps/api/Dockerfile` and `apps/web/Dockerfile` are multi-stage builds (pnpm workspace-aware, non-root runtime user) that produce a runnable image for each app:
+`apps/api/Dockerfile` và `apps/web/Dockerfile` là multi-stage build (pnpm workspace-aware, chạy bằng user non-root) đã sẵn sàng tạo ra image chạy được cho từng app:
 
 ```bash
 docker build -f apps/api/Dockerfile -t training-app-api .
 docker build -f apps/web/Dockerfile -t training-app-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001 .
 ```
 
-The underlying `next build` (standalone output) and `nest build` have both been verified to succeed — but the `docker build`/`docker run` commands above (actual image build through the Docker daemon) have **not** been run yet on a real machine. Verify both before relying on them for anything real. They intentionally stop at "produces a runnable image." Neither is wired to a deploy platform (Dokploy, Vercel, K8s, a plain VPS, whatever) — picking and configuring that is the concrete project's job once it knows its actual target, not this base's. `docker-compose.yml` here stays local-dev-only (Postgres only); there is no `docker-compose.prod.yml` and no CI/CD.
+`next build` (standalone output) và `nest build` bên dưới đã được verify chạy thành công — nhưng lệnh `docker build`/`docker run` ở trên (build image thật qua Docker daemon) **chưa** được chạy thử trên máy thật. Hãy verify cả 2 trước khi dựa vào chúng cho việc gì thật sự quan trọng. Cả 2 chủ đích chỉ dừng lại ở mức "tạo ra được image chạy được". Không cái nào được nối vào 1 nền tảng deploy cụ thể (Dokploy, Vercel, K8s, VPS thuần, hay gì cũng được) — chọn và cấu hình nền tảng đó là việc của dự án cụ thể khi nó biết rõ target thật, không phải việc của base này. `docker-compose.yaml` ở đây chỉ dùng cho local dev (chỉ có Postgres); không có `docker-compose.prod.yaml`, không có CI/CD.
 
-**Windows note:** `apps/web`'s `output: 'standalone'` requires creating symlinks during `next build`'s trace-collection step. Windows blocks this by default outside Administrator or Developer Mode (Settings → Privacy & Security → For Developers) — enable Developer Mode if `pnpm build` fails with `EPERM: operation not permitted, symlink...`.
+**Lưu ý cho Windows:** `output: 'standalone'` của `apps/web` cần tạo symlink trong bước thu thập trace của `next build`. Windows mặc định chặn việc này ngoài quyền Administrator hoặc Developer Mode (Settings → Privacy & Security → For Developers) — bật Developer Mode nếu `pnpm build` báo lỗi `EPERM: operation not permitted, symlink...`.
 
-## Common commands
+## Các lệnh thường dùng
 
 ```bash
-pnpm dev            # both apps, watch mode
-pnpm build          # both apps
-pnpm lint            # both apps
-pnpm check-types    # both apps
-pnpm test           # both apps — two harness-proof specs total, not behavior tests
-pnpm codegen        # api openapi export -> orval -> typed web client
+pnpm dev            # cả 2 app, chế độ watch
+pnpm build          # cả 2 app
+pnpm lint            # cả 2 app
+pnpm check-types    # cả 2 app
+pnpm test           # cả 2 app — chỉ 2 spec chứng minh test harness chạy được, không phải test hành vi
+pnpm codegen        # export OpenAPI từ api -> orval -> sinh typed client cho web
 ```

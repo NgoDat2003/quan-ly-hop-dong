@@ -1,7 +1,7 @@
 ## Docker
 
-- `docker-compose.yml` KHÔNG hardcode `container_name` — để Compose tự đặt tên theo tên thư mục dự án. Hai clone của base này chạy `docker compose up -d` cùng lúc trên cùng máy sẽ đụng tên container nếu hardcode.
-- `apps/api/Dockerfile` và `apps/web/Dockerfile` là multi-stage build (pnpm workspace-aware, non-root user), viết sẵn để `docker build` chạy được — nhưng **không** wire vào bất kỳ deploy platform nào (Dokploy, Vercel, K8s, VPS...). Chọn và cấu hình nền tảng deploy là việc của dự án cụ thể khi biết rõ nền tảng, không phải việc của base template — quyết định này đã brainstorm rõ, đừng tự thêm CI/CD hay compose.prod vào base nữa trừ khi pattern deploy thật sự cố định qua nhiều dự án.
+- `docker-compose.yaml` KHÔNG hardcode `container_name` — để Compose tự đặt tên theo tên thư mục dự án. Hai clone của base này chạy `docker compose up -d` cùng lúc trên cùng máy sẽ đụng tên container nếu hardcode.
+- `apps/api/Dockerfile` và `apps/web/Dockerfile` là multi-stage build (pnpm workspace-aware, non-root user), viết sẵn để `docker build` chạy được — nhưng **không** wire vào bất kỳ deploy platform nào (Dokploy, Vercel, K8s, VPS...). Chọn và cấu hình nền tảng deploy là việc của dự án cụ thể khi biết rõ nền tảng, không phải việc của base template — quyết định này đã brainstorm rõ, đừng tự thêm CI/CD hay compose.prod.yaml vào base nữa trừ khi pattern deploy thật sự cố định qua nhiều dự án.
 - `apps/web/next.config.ts` có `output: 'standalone'` (bắt buộc cho Dockerfile FE). Trên Windows, bước "collecting build traces" của `next build` cần tạo symlink — Windows chặn việc này mặc định ngoài quyền Administrator/Developer Mode. Nếu `pnpm build` báo `EPERM: operation not permitted, symlink...`, bật Windows Developer Mode (Settings → Privacy & Security → For Developers), không phải lỗi code.
 
 ## Git & .gitignore
