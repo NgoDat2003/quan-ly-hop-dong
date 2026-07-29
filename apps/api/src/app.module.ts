@@ -1,13 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './prisma/prisma.module';
 import { AccessControlModule } from './modules/access-control/access-control.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
-import { validateEnv } from './config/env.schema';
+import { validateEnv, type AppEnv } from './config/env.schema';
 
 @Module({
   imports: [
@@ -19,6 +20,46 @@ import { validateEnv } from './config/env.schema';
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
+    }),
+    // JSON structured request logging via pino, replacing Nest's default
+    // text logger. redact strips Authorization headers so JWT bearer
+    // tokens never land in log output/aggregators.
+    LoggerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppEnv, true>) => {
+        const nodeEnv = configService.get('NODE_ENV', { infer: true });
+        return {
+          pinoHttp: {
+            level: nodeEnv === 'production' ? 'info' : 'debug',
+            // pino-http does not log req.body by default, so login
+            // payloads aren't exposed even without an explicit redact
+            // entry for them. If a future change adds a req.body
+            // serializer (e.g. for debugging), extend this redact list
+            // to cover credential fields in the body too.
+            redact: ['req.headers.authorization'],
+            transport:
+              nodeEnv === 'production'
+                ? undefined
+                : {
+                    target: 'pino-pretty',
+                    options: {
+                      colorize: true,
+                      ignore: 'pid,hostname',
+                      singleLine: false,
+                      translateTime: 'SYS:standard',
+                    },
+                  },
+          },
+          // Nest 10 (Express adapter, path-to-regexp v6) route wildcard —
+          // NOT the '{*path}' syntax from Nest 11/path-to-regexp v8.
+          // '{*path}' silently fails to match any route on this Nest
+          // version: no error at boot or build time, the middleware
+          // simply never runs. Verified against a live request during
+          // implementation — '*' is the correct pattern here.
+          forRoutes: [{ path: '*', method: RequestMethod.ALL }],
+        };
+      },
     }),
     // Registered before AccessControlModule on the assumption that
     // ThrottlerGuard (cheap, no DB/JWT work) then runs before

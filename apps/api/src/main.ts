@@ -8,15 +8,24 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, type LoggerService } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Buffers Nest's internal logs (framework startup messages, module init)
+  // until the pino Logger below is wired up, so nothing is lost or printed
+  // through the default console logger mid-bootstrap.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get<LoggerService>(Logger));
+  // Without this, PrismaService.onModuleDestroy never runs on SIGTERM —
+  // the DB connection gets cut abruptly instead of closed cleanly when a
+  // container orchestrator stops the process.
+  app.enableShutdownHooks();
   // CSP disabled: Swagger UI (mounted at /api below) relies on inline
   // scripts/styles that helmet's default CSP blocks. All other helmet
   // headers (HSTS, X-Content-Type-Options, etc.) stay active.

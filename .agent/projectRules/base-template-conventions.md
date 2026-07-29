@@ -8,6 +8,7 @@
 
 - `docs/` bị gitignore hoàn toàn (journal là nhật ký làm việc cục bộ, không phải tài liệu sản phẩm). `plans/` KHÔNG bị gitignore — nhưng plan đã hoàn thành nên được dọn định kỳ (xem "Vòng đời plans/ và docs/journals/" bên dưới).
 - Không dùng `*.env.example` (glob re-ignore) nếu đã có `!/.env.example` negation phía trên — thứ tự rule trong `.gitignore` quan trọng, 1 rule "re-ignore" đứng sau có thể âm thầm ghi đè negation đứng trước, khiến file template không bao giờ được track dù `git add` không báo lỗi gì. Luôn `git check-ignore -v <file>` để xác nhận sau khi sửa `.gitignore`.
+- `.env.example` nằm ở **root repo**, không phải `apps/api/` — README hướng dẫn `cp .env.example apps/api/.env` chạy từ root, nên file nguồn phải ở đúng vị trí đó để lệnh copy không trỏ vào file không tồn tại.
 
 ## Vòng đời `plans/` và `docs/journals/`
 
