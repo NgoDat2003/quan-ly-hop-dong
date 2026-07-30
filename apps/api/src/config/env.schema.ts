@@ -26,5 +26,15 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
 
+  // The default JWT_SECRET is public (checked into source control) and only
+  // safe for local dev boot-without-.env convenience. Refuse to boot in
+  // production with it still set — that would let anyone forge a valid JWT
+  // for any user id.
+  if (result.data.NODE_ENV === 'production' && result.data.JWT_SECRET === 'dev-placeholder-secret') {
+    throw new Error(
+      'JWT_SECRET must be set explicitly in production, refusing to boot with the default dev secret',
+    );
+  }
+
   return result.data;
 }

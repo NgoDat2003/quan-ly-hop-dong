@@ -4,8 +4,9 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   TRAINEE: [],
 };
 
-// TODO: implement — evaluate `required` against ROLE_PERMISSIONS[role],
-// handling the ADMIN '*' wildcard. Currently allows everything.
-export function hasPermission(_role: string, _required: string[]): boolean {
-  return true;
+export function hasPermission(role: string, required: string[]): boolean {
+  if (required.length === 0) return true;
+  const granted = ROLE_PERMISSIONS[role] ?? [];
+  if (granted.includes('*')) return true;
+  return required.every((perm) => granted.includes(perm));
 }

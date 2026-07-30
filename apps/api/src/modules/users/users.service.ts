@@ -1,19 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UserResponseDto } from './dto/user-response.dto';
+import type { User } from '../../generated/prisma/client';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {} // REAL: DI wiring
 
-  // TODO: implement — prisma.user.findUnique({ where: { id } })
-  async findById(_id: string): Promise<UserResponseDto | null> {
-    return null;
+  async findById(id: string): Promise<UserResponseDto | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    return user;
   }
 
-  // TODO: implement — prisma.user.findUnique({ where: { email } }), includes password hash
-  async findByEmail(_email: string): Promise<unknown | null> {
-    return null;
+  // Returns the raw Prisma User (includes password hash) — internal use by
+  // AuthService only, never serialize this directly into an API response.
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
   // TODO: implement — prisma.user.create(...). Kept as a signature slot for

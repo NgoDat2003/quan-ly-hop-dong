@@ -1,15 +1,15 @@
 # Training App — Base Skeleton
 
 > **⚠️ Đây là bộ khung cấu trúc (structural skeleton). Không deploy cái này ở bất cứ đâu.**
-> Mọi service method, cả 2 auth guard (`JwtAuthGuard`, `PermissionsGuard`), `JwtStrategy.validate()`, và frontend action hook (`useAuthActions().login`) đều là stub. API **không có auth thật và không có authorization thật** — cả 2 guard hiện tại đều `return true` vô điều kiện.
+> Auth (JWT guard, permission check, password hashing) đã implement thật — không còn là stub. Vẫn chưa có domain module nào ngoài `User`, chưa có dashboard/trang đăng ký, seed data dùng credential dev-only.
 
 ## Base này chứa gì
 
 - Monorepo (Turborepo + pnpm) gồm `apps/api` (NestJS + Prisma + PostgreSQL) và `apps/web` (Next.js App Router + shadcn/ui).
 - Một bảng domain duy nhất: `User` (+ enum `Role`). **Không có module domain nào khác.** Thêm module đầu tiên là việc của người đọc — xem [`apps/api/src/modules/README.md`](./apps/api/src/modules/README.md).
-- Lớp JWT/access-control dạng stub: guard, decorator, và `JwtStrategy` đã wiring nhưng không làm gì (no-op).
+- Lớp JWT/access-control đã implement thật: guard kiểm tra token + permission thật qua DB, `JwtStrategy` tra user tươi mỗi request.
 - Pipeline contract dạng envelope: backend DTO → OpenAPI → Orval → typed frontend hooks.
-- Một màn hình duy nhất: `/login`. Không có dashboard, không có trang đăng ký, không có route nào khác.
+- Một màn hình duy nhất: `/login`. Không có dashboard, không có trang đăng ký, không có route nào khác — sau khi login thành công, redirect về `/` (hiện chỉ là placeholder).
 
 ## Yêu cầu trước khi chạy
 
@@ -25,36 +25,33 @@ cp .env.example apps/api/.env
 cp apps/web/.env.local.example apps/web/.env.local
 docker compose up -d
 pnpm --filter=api prisma:migrate
+pnpm --filter=api seed
 pnpm codegen
 pnpm dev
 ```
 
+`pnpm --filter=api seed` tạo 1 admin user đầu tiên (`admin@example.com` / `admin12345`, password đã hash) — cần chạy trước khi login lần đầu, vì không có endpoint đăng ký công khai. Seed từ chối chạy nếu `NODE_ENV=production` — chỉ dùng cho dev/skeleton, không dùng credential này trên môi trường thật.
+
 - API: `http://localhost:3001` — Swagger UI tại `http://localhost:3001/api`
 - Web: `http://localhost:3000` — màn hình duy nhất là `http://localhost:3000/login`
 
-## Những gì đang là stub (đọc phần này trước khi báo bug)
+## Những gì vẫn còn là stub
 
 | Phần | Hành vi hiện tại |
 | --- | --- |
-| `UsersService.findById` / `findByEmail` / `create` | Trả `null` / throw `not implemented` |
-| `AuthService.login` / `me` | Trả về 1 user stub hardcode + `'stub-token'` |
-| `JwtAuthGuard.canActivate` | `return true` — **mọi route đều mở** |
-| `PermissionsGuard.canActivate` | `return true` — **không permission nào được kiểm tra** |
-| `JwtStrategy.validate()` | Trả về user hardcode, không tra cứu gì cả |
-| `hasPermission()` | `return true` vô điều kiện |
-| `useAuthActions().login` (frontend) | Gọi thật `POST /auth/login` nhưng bỏ qua kết quả trả về |
+| `UsersService.create` | Throw `not implemented` — không có endpoint đăng ký công khai, người dùng đầu tiên tạo qua seed script |
 
-**Đăng nhập ở `/login` trông như thành công nhưng không làm gì cả.** Request thật sự chạm tới backend và nhận về 200, nhưng không token nào được lưu, không redirect, không toast nào hiện lên. Đây là trạng thái chủ đích của base này, không phải bug.
+Toàn bộ phần auth (`JwtAuthGuard`, `PermissionsGuard`, `JwtStrategy.validate()`, `hasPermission()`, `AuthService.login`/`me`, `useAuthActions().login`) đã implement thật, có test boundary chứng minh guard thực sự chặn request sai (xem `apps/api/src/modules/access-control/access-control.integration.spec.ts`).
 
-### Phần nguy hiểm: không cái nào báo lỗi rõ ràng
+### Bài học lịch sử: vì sao "không báo lỗi rõ ràng" từng là bẫy nguy hiểm nhất ở đây
 
-Mọi stub ở trên đều **chạy thành công**. `JwtAuthGuard.canActivate` trả `true` không throw, không log cảnh báo, không trả 403 — nó chỉ đơn giản cho mọi request đi qua, có auth hay không cũng vậy. Nếu bạn clone base này, thêm 1 module domain thật, guard 1 route bằng `@RequirePermissions('order:delete')`, test bằng Postman và thấy `200` — cái `200` đó không chứng minh được gì cả. Guard sẽ trả về đúng `200` y hệt cho 1 request không hề có token.
+Đoạn này mô tả trạng thái BAN ĐẦU của base template (trước khi auth được implement thật) — giữ lại vì giá trị giáo dục, KHÔNG phải cảnh báo còn hiệu lực cho code hiện tại.
 
-Cái bẫy này còn sâu hơn 1 lớp nữa: khi `JwtAuthGuard` đã được implement thật, `JwtStrategy.validate()` vẫn đang hardcode `role: 'ADMIN'` cho **bất kỳ** JWT hợp lệ nào, bất kể token đó của ai hay user đó có tồn tại hay không. Một route "đúng chuẩn" từ chối request chưa đăng nhập vẫn có thể âm thầm cấp quyền admin cho mọi user đã đăng nhập — và loại lỗi này khó phát hiện hơn nhiều so với cái guard-không-làm-gì ở trên, vì nó trông giống code đang hoạt động với 1 giá trị trả về hợp lý.
+Mọi stub cũ từng **chạy thành công** mà không báo lỗi gì. `JwtAuthGuard.canActivate` từng trả `true` không throw, không log cảnh báo, không trả 403 — cho mọi request đi qua bất kể có auth hay không. Một route guard bằng `@RequirePermissions('order:delete')`, test bằng Postman và thấy `200` — cái `200` đó không chứng minh được gì, vì guard trả đúng `200` y hệt cho request không hề có token.
 
-**Trước khi coi bất kỳ route có auth-guard nào là xong, bạn phải tự tay sửa lại cả 4 chỗ sau:** `JwtAuthGuard.canActivate`, `PermissionsGuard.canActivate`, `JwtStrategy.validate()`, `hasPermission()`. Grep `TODO: implement` trong `modules/access-control/` và `modules/auth/` nếu không chắc chỗ nào vẫn còn là stub.
+Bẫy sâu hơn 1 lớp: `JwtStrategy.validate()` từng hardcode `role: 'ADMIN'` cho **bất kỳ** JWT hợp lệ nào, bất kể token đó của ai hay user đó có tồn tại hay không. Một route "đúng chuẩn" từ chối request chưa đăng nhập vẫn có thể âm thầm cấp quyền admin cho mọi user đã đăng nhập.
 
-Đây là cùng 1 loại lỗi với sự cố `process.env.DATABASE_URL` mà chính base template này từng gặp phải trong lúc xây dựng (xem lịch sử git / commit message) — code chạy được và trả lời thành công không phải là bằng chứng nó làm đúng việc. Một bộ test thật sự kiểm tra ranh giới authorization (chứ không chỉ "endpoint có phản hồi không") là cách kiểm tra thật duy nhất ở đây.
+Đây là cùng 1 loại lỗi với sự cố `process.env.DATABASE_URL` mà chính base template này từng gặp phải trong lúc xây dựng (xem lịch sử git / commit message) — code chạy được và trả lời thành công không phải là bằng chứng nó làm đúng việc. Bài học này là lý do `access-control.integration.spec.ts` tồn tại: test boundary thật (không token → 401, sai permission → 403, user không tồn tại trong DB → 401) là cách kiểm tra thật duy nhất, không phải "endpoint có phản hồi không".
 
 ## Quyết định kiến trúc quan trọng nhất cần giữ lại
 
@@ -87,6 +84,6 @@ pnpm dev            # cả 2 app, chế độ watch
 pnpm build          # cả 2 app
 pnpm lint            # cả 2 app
 pnpm check-types    # cả 2 app
-pnpm test           # cả 2 app — chỉ 2 spec chứng minh test harness chạy được, không phải test hành vi
+pnpm test           # cả 2 app — apps/api có test hành vi thật cho auth boundary (guard, permission check)
 pnpm codegen        # export OpenAPI từ api -> orval -> sinh typed client cho web
 ```
