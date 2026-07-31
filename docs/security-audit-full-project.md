@@ -1,0 +1,110 @@
+# Kiểm tra bảo mật — Toàn bộ project (chế độ Red-Team)
+
+**Phạm vi:** D:\work\maycha\create-template-project (Turborepo monorepo — `apps/api` NestJS 10 + Prisma 7 + PostgreSQL, `apps/web` Next.js App Router + shadcn/ui)
+**Chế độ:** Red-team (4 persona tấn công + rà soát STRIDE/OWASP)
+**Ngày:** 2026-07-30 (verify lại độc lập lần 2: 2026-07-31, commit `cb472bb` — vẫn là tip, không đổi gì từ audit gốc)
+**Chế độ fix:** TẮT — chỉ audit, không sửa gì
+
+> Lưu ý: file này nằm trong `docs/` — thư mục bị `.gitignore` theo chủ đích của base template (xem `.agent/projectRules/base-template-conventions.md`), nên KHÔNG được commit vào git. Chỉ tồn tại local. Nếu muốn giữ report này xuyên suốt khi copy sang dự án chính, cần chủ động thêm exception vào `.gitignore` hoặc copy tay file này.
+
+## Bối cảnh đã ghi nhận trước khi chấm điểm
+
+Đây là base/skeleton template cố ý tối giản (README: "bộ khung cấu trúc, không deploy cái này ở bất cứ đâu"). Các mục sau là **quyết định phạm vi có chủ đích, đã ghi lại**, không phải lỗi:
+- Không có CI/CD (`.github/`) — chọn nền tảng deploy để dự án cụ thể tự quyết định sau.
+- Không có refresh token, không có `/auth/register` công khai — theo YAGNI, dùng seed script thay thế.
+- JWT payload chỉ chứa `sub`; role luôn tra lại từ DB mỗi request (không nhét vào token).
+- Token lưu ở `localStorage` (không phải httpOnly cookie) — trade-off đã chấp nhận rõ ràng, có ghi chú rằng dự án thật cần cân nhắc lại nếu quan tâm chống XSS. Xem README mục "Lưu ý bảo mật: JWT lưu ở localStorage" cho điều kiện revisit cụ thể.
+- Guard `JWT_SECRET` khi chạy production, chống timing-attack lúc login (dummy `bcryptjs.compare`), và bug tương tác `@Public()`+`@RequirePermissions()` đều đã được sửa và có test tự động bảo vệ (`access-control.integration.spec.ts`) — đã verify lại độc lập bên dưới, không báo lại là lỗi mới.
+- Structured logging (pino, `redact: ['req.headers.authorization']`), graceful shutdown, rate limiting (100 req/60s toàn cục), helmet, validate biến môi trường bằng zod — tất cả đã có sẵn và đã verify, không báo lại.
+
+---
+
+## Danh sách phát hiện
+
+| # | Mức độ | Danh mục | File:Dòng | Mô tả | Đề xuất khắc phục |
+|---|----------|----------|-----------|--------------|---------------------|
+| 1 | Cao | A06 Thành phần dễ tổn thương | `apps/api` cây dependency runtime — `multer` 2.0.2 (gián tiếp qua `@nestjs/platform-express`) | 4 lỗ hổng CVE nối chuỗi trong `multer` (GHSA-xf7r-hgr6-v32p, GHSA-v52c-386h-88mc, GHSA-5528-5vmv-3xc2, GHSA-72gw-mp4g-v24j, GHSA-3p4h-7m6x-2hcm) — có thể gây từ chối dịch vụ (DoS) qua dọn dẹp không hoàn tất, cạn tài nguyên, đệ quy không kiểm soát, tên field lồng sâu, không dọn dẹp khi upload bị huỷ giữa chừng. `multer` được kéo vào gián tiếp qua `@nestjs/platform-express` dù project skeleton này **chưa có route upload file nào**. | Nâng lên `multer >=2.2.0` khi có dự án con thêm chức năng upload file (chạy `pnpm up -r` hoặc kiểm tra bản nâng cấp `@nestjs/platform-express`). Chưa khai thác được ngay bây giờ (chưa có route multipart nào đăng ký), nhưng sẽ trở thành rủi ro thật ngay khi có dự án dựa trên base này thêm endpoint upload mà không audit lại dependency trước. Cần theo dõi trước. |
+| 2 | Cao | A06 Thành phần dễ tổn thương | `apps/web` dependency runtime — `next` 15.0.0 → gián tiếp qua `postcss` 8.4.31 | 3 lỗ hổng CVE trong `postcss`: XSS qua thẻ `</style>` chưa escape (GHSA-qx2v-qp2m-jg93), đọc file tuỳ ý qua `sourceMappingURL` (GHSA-6g55-p6wh-862q), path traversal qua tự động load source map (GHSA-r28c-9q8g-f849). Các lỗ hổng này cần `postcss` xử lý CSS do kẻ tấn công kiểm soát lúc build/dev — không tiếp cận được từ 1 HTTP request thông thường trong app này, nhưng pipeline build của `next` vẫn dùng thư viện này. | Chạy `pnpm up next` lên bản vá mới nhất (15.x hoặc 16.x) để kéo theo `postcss >=8.5.18`. Khả năng khai thác thật thấp cho skeleton này (không có luồng nhận CSS/SCSS từ user), nhưng chi phí sửa rẻ (chỉ cần nâng version). |
+| 3 | Cao | A06 Thành phần dễ tổn thương | `apps/web` dependency runtime (tuỳ chọn) — `sharp` 0.34.5 qua `next` | 4 lỗ hổng CVE nối chuỗi (GHSA-f88m-g3jw-g9cj) trong thư viện xử lý ảnh libvips. `sharp` là dependency tuỳ chọn của `next` dùng cho tối ưu ảnh (`next/image`) — chỉ tiếp cận được nếu dự án dựa trên base này phục vụ ảnh do user upload qua `next/image`. Hiện chưa dùng tới (skeleton chưa có luồng upload ảnh nào). | Nâng `next`/`sharp` để kéo theo `sharp >=0.35.0` trước khi có dự án bật tính năng tối ưu ảnh từ nội dung do user cung cấp. |
+| 4 | Cao | A06 Thành phần dễ tổn thương | `apps/api` dependency runtime — `@nestjs/core` 10.4.22 (mọi package `@nestjs/*` đều resolve về bản này) | GHSA-36xv-jgw5-4q75 — lỗi thuộc nhóm "không khử đúng ký tự đặc biệt trong output" (dạng injection qua output) trong `@nestjs/core` <=11.1.17. Advisory mô tả khá mơ hồ về phạm vi ảnh hưởng; dòng NestJS 10.x vẫn đang nhận bản vá. | Theo dõi bản vá NestJS 10.x cho advisory này (hoặc đánh giá riêng lộ trình nâng lên Nest 11 — thay đổi lớn hơn, không nên làm tuỳ tiện). Không tìm thấy đường khai thác cụ thể nào trong cách codebase này dùng framework, qua lần audit này. |
+| 5 | Cao | A06 Thành phần dễ tổn thương | `apps/api` dependency gián tiếp runtime — `qs` (qua `express`/`body-parser`) 6.14.2 | GHSA-q8mj-m7cp-5q26 — lỗi DoS (crash do TypeError) ở hàm `qs.stringify` khi có entry null/undefined trong mảng dạng comma-format kèm `encodeValuesOnly`. Đây là lỗi ở chiều `stringify` (không phải `parse`) — Express dùng `qs` để **parse** query string đầu vào, không dùng `stringify` đầu ra trong luồng xử lý request của app này, nên khả năng khai thác thật ở đây thấp. | Ưu tiên thấp — không có đoạn code nào trong repo gọi `qs.stringify` với tổ hợp option gây lỗi. Sẽ tự động được vá khi Express/body-parser cập nhật phiên bản `qs` ghim sẵn; không cần hành động ngay. |
+| 6 | Cao | A06 Thành phần dễ tổn thương | Dependency gián tiếp chỉ dùng lúc dev — `glob` 10.4.5 (`@nestjs/cli`), `picomatch` 4.0.1 (`@nestjs/cli`→`@angular-devkit`), `brace-expansion` (chuỗi jest/eslint), `tmp` 0.0.33 (`@nestjs/cli`→`inquirer`), `find-my-way` 9.6.0 (`prisma`→`@prisma/dev`), `js-yaml` 5.2.1 (`@nestjs/swagger`) | Tất cả đều `dev: true` trong kết quả audit, trừ `find-my-way` (qua công cụ dev `@prisma/dev` của Prisma, không phải Prisma Client runtime) và `js-yaml` (dùng lúc sinh tài liệu Swagger, không chạy mỗi request). Không cái nào chạy trong `dist/` production đã build — chỉ là công cụ CLI/build/test. Rủi ro thật chỉ giới hạn ở máy dev cục bộ hoặc CI runner bị chiếm quyền và xử lý input độc hại lúc `nest build`/`jest`/`eslint`, không phải API đang chạy thật. | Ưu tiên thấp cho 1 project template. Chạy `pnpm up -D` định kỳ để lấy bản vá công cụ dev; không cần chặn release. |
+| 7 | Trung bình | A05 Cấu hình sai bảo mật | `apps/api/src/main.ts:45` | Swagger UI (`/api`) không có guard xác thực và không giới hạn theo `NODE_ENV` — mount vô điều kiện ở mọi môi trường, kể cả nếu skeleton này từng bị deploy nguyên trạng. Nó document đầy đủ mọi endpoint, schema request/response, và scheme bearer-auth. Đây là điều bình thường với 1 skeleton (Swagger chính là nguồn OpenAPI để Orval sinh code), và README đã ghi rất rõ "đừng deploy cái này ở bất cứ đâu" — nhưng nếu dự án dựa trên base này quên khoá `/api` lại trước lần deploy thật đầu tiên, đây là 1 bản đồ API miễn phí cho kẻ tấn công (OWASP A05 — "bật tính năng không cần thiết" ở production). | Ở mức thông tin cho repo này (skeleton có tài liệu rõ, không deploy). Đề xuất thêm 1 dòng comment trong `main.ts` cạnh `SwaggerModule.setup(...)` nhắc dự án con phải khoá hoặc gỡ `/api` ở production, HOẶC mặc định giới hạn nó theo `nodeEnv !== 'production'` để dự án con được an toàn sẵn mà không cần nhớ tự làm. |
+| 8 | Thông tin | A01 Kiểm soát truy cập bị phá vỡ (khoảng trống giai đoạn thiết kế) | `apps/api/src/modules/access-control/role-permissions.ts:1-5` | `ROLE_PERMISSIONS`: `ADMIN: ['*']`, `TRAINER: []`, `TRAINEE: []`. Hiện tại không có chuỗi permission nào mà role không phải admin có thể thoả mãn — `@RequirePermissions(...)` trên bất kỳ route tương lai nào thực chất chỉ dùng được cho ADMIN cho tới khi ai đó điền map này. Đây là cách hiện thực đúng và hoạt động đúng cho 1 tập quyền rỗng (đã verify qua test 403 cho TRAINEE trong `access-control.integration.spec.ts`) — không phải bug. Chỉ nêu ra vì engineer tiếp theo thêm module domain thật đầu tiên cần biết họ phải tự điền `ROLE_PERMISSIONS[role]`; mảng rỗng ngầm nghĩa là "không có quyền gì", không phải "chưa cấu hình xong" — và NestJS cũng không báo hiệu gì lúc compile để nhắc điều này. | Không cần sửa code. Cân nhắc thêm 1 dòng comment trong `role-permissions.ts` phía trên 2 dòng TRAINER/TRAINEE: "rỗng = 0 quyền ngay bây giờ; điền map trước khi gán @RequirePermissions() cho route mà các role này cần truy cập." |
+| 9 | Thông tin | A09 Thiếu sót logging (khoảng trống giai đoạn thiết kế) | Toàn bộ `apps/api` — không có module audit-log nào | Không có audit trail lưu trữ lâu dài cho sự kiện đăng nhập (thành công/thất bại) hay lỗi phân quyền, ngoài log request tạm thời của pino (mà bản thân nó cũng đã redact header Authorization, nên không thể dùng để tra "ai đăng nhập lúc nào" ở cấp độ token). Với 1 skeleton chỉ có 1 bảng `User` không nhạy cảm và không có yêu cầu compliance/CI, điều này chấp nhận được. Nêu ra như 1 ghi chú mức thông tin rõ ràng cho ai mở rộng base này thành sản phẩm thật xử lý dữ liệu nhạy cảm — độ phủ STRIDE "Repudiation" (chống chối bỏ) hiện đang bằng 0. | Không cần hành động cho bản thân base template. Nếu dự án con xử lý dữ liệu PII/tài chính/y tế, thêm 1 bảng audit-log riêng hoặc cơ chế event-sink (pattern `@nestjs/event-emitter` đã có ví dụ ở repo khác cùng tổ chức, theo `backend-architecture.md`) trước khi lên production. |
+| 10 | Thông tin | A04 Thiết kế thiếu an toàn (phòng ngừa nhiều lớp) | `apps/api/src/modules/access-control/strategies/jwt.strategy.ts:17-21` | `Strategy` của `passport-jwt` được khởi tạo mà không có allowlist tường minh `algorithms: ['HS256']`. `JwtModule` của `@nestjs/jwt` mặc định ký bằng HS256 và app này chỉ dùng đúng 1 secret đối xứng (không có RS256/JWKS ở đâu trong codebase), nên kiểu tấn công "alg confusion" kinh điển (kẻ tấn công đổi `RS256`→`HS256` rồi ký bằng public key như 1 HMAC secret) không áp dụng được ở đây — vì không có cặp khoá public/private nào để gây nhầm lẫn. Tuy vậy, `passport-jwt` mặc định chấp nhận bất kỳ thuật toán nào mà thư viện `jsonwebtoken` bên dưới hỗ trợ trừ khi bị giới hạn tường minh, nên đây là 1 khoảng trống tiềm ẩn hơn là 1 đường khai thác đang sống. | Phòng ngừa nhiều lớp với chi phí rẻ: thêm `algorithms: ['HS256']` vào options `super({...})` trong `jwt.strategy.ts`. Không khẩn cấp — chưa có đường khai thác trong cấu hình hiện tại (1 secret, 1 thuật toán) — nhưng đóng vĩnh viễn rủi ro này với chi phí gần như bằng 0, phòng trường hợp project sau này chuyển sang khoá bất đối xứng mà quên thêm allowlist lúc đó. |
+| 11 | Thông tin | A02 Lỗi mật mã (chỉ xác nhận) | `apps/api/src/modules/auth/auth.service.ts:13`, `apps/api/scripts/seed-admin.ts:23` | Cost factor 12 của bcrypt được dùng nhất quán cho cả so sánh dummy-hash lúc login lẫn hash thật lúc seed-admin. Đây là mức mặc định hợp lý theo chuẩn hiện đại (OWASP khuyến nghị >=10, phổ biến dùng 12 cho `bcryptjs`). Không cần đổi gì — chỉ xác nhận lại. | Không cần hành động. |
+
+---
+
+## Tóm tắt độ phủ Persona / STRIDE / OWASP
+
+```
+=== Độ phủ Red-Team ===
+Persona: Security Adversary[xong] Supply Chain[xong] Insider[xong] Infrastructure[xong]
+Độ phủ STRIDE: S[xong] T[xong] R[xong] I[xong] D[xong] E[xong] — 6/6
+Độ phủ OWASP: A01[xong] A02[xong] A03[xong] A04[xong] A05[xong] A06[xong] A07[xong] A08[không áp dụng-không có CI/CD] A09[xong] A10[xong] — 9/10 (A08 không áp dụng vì không có pipeline build nào để audit)
+Phát hiện: 0 Nghiêm trọng, 5 Cao (đều là CVE dependency, không cái nào khai thác độc lập được trong đường code hiện tại của app), 1 Trung bình, 5 Thông tin
+```
+
+### Persona 1 — Security Adversary (hacker bên ngoài)
+
+Đã kiểm tra: auth bypass (giả mạo JWT, thiếu expiry, alg confusion), injection (SQL/NoSQL/command/template), IDOR, leo thang đặc quyền, lỗi trả về quá chi tiết/endpoint debug.
+
+- **Chuỗi JWT (lần review độc lập thứ 2 trên code đã được review trước đó):** `JwtAuthGuard` kiểm tra `@Public()` đúng cả ở mức handler và class trước khi delegate cho Passport (`jwt-auth.guard.ts:12-19`). `JwtStrategy.validate()` tra DB tươi qua `UsersService.findById(payload.sub)` và throw `UnauthorizedException` khi `null` — xác nhận bẫy "hardcode ADMIN" đã được đóng hoàn toàn, verify độc lập bằng cách tự đọc lại code (không chỉ tin vào tài liệu plan) và đối chiếu với test `payload.sub does not map to a user` trong `access-control.integration.spec.ts`. Không tìm thấy đường bypass mới nào.
+- **Tương tác `PermissionsGuard` + `@Public()`:** đã verify lại độc lập — guard kiểm tra `PUBLIC_KEY` trước và dừng sớm trước khi đánh giá `@RequirePermissions()`, khớp đúng fix đã ghi lại. Đã xác nhận qua test case `public-and-permission`.
+- **Bề mặt injection:** Toàn bộ codebase chỉ dùng Prisma query (`findUnique`, `upsert`, `$queryRaw`\`SELECT 1\` không nội suy chuỗi) — không có nối chuỗi SQL thô ở đâu cả. Không có engine NoSQL/command/template nào được dùng.
+- **IDOR:** Endpoint duy nhất có tham số theo id là ngầm định (`GET /auth/me` đọc `user.id` từ JWT đã validate qua `@CurrentUser()`, không bao giờ lấy từ param do client cung cấp) — chưa có bề mặt IDOR vì hiện chỉ có đúng 1 bảng domain và chưa có route kiểu `GET /users/:id`.
+- **Lỗi trả về quá chi tiết:** `HttpExceptionFilter` dùng `@Catch()` (bắt mọi exception), ép trả body 500 chung chung cho lỗi không phải `HttpException`, không bao giờ lộ `error.message`/stack trace. Xác nhận đúng.
+- **Alg confusion:** xem Finding #10 (mức thông tin, không có đường khai thác đang sống — chỉ dùng 1 secret đối xứng, không có khoá bất đối xứng nào).
+- Không có finding Nghiêm trọng/Cao mới từ persona này ngoài những gì đã được sửa và có test từ trước.
+
+### Persona 2 — Supply Chain Attacker (kẻ phá hoại qua dependency)
+
+Đã triage file `pnpm-audit-output.json` đã cung cấp (13 high, 10 moderate, 4 low trên tổng 1396 dependency) theo khả năng khai thác thật trong codebase này, không chỉ dựa vào mức độ nghiêm trọng thô:
+
+- **Tiếp cận được qua runtime, là finding thật:** `multer` (gián tiếp, chưa có route upload nào — Finding #1), `postcss`/`sharp` trong pipeline build/xử lý ảnh của `apps/web` (Finding #2-3), `@nestjs/core` (Finding #4, không tìm thấy đường khai thác cụ thể), `qs.stringify` (Finding #5, sai chiều hàm — app chỉ dùng parse, không exploit được ở đây).
+- **Chỉ dùng lúc dev, không đóng gói vào bản chạy:** `tmp`, `glob`, `picomatch`, `ajv`, `webpack` (đều qua công cụ schematics của `@nestjs/cli`/`@angular-devkit`), `brace-expansion` (qua chuỗi jest/eslint), `js-yaml` (qua `@nestjs/swagger`, chỉ lúc sinh tài liệu), `find-my-way` (qua công cụ dev CLI `@prisma/dev` của Prisma, không phải Prisma Client runtime thực thi query), `valibot` (qua công cụ dev của `prisma` và `@hookform/resolvers` — cái sau là dependency runtime nhưng bản thân `valibot` không được app này gọi, app dùng resolver của `zod`) — gộp vào Finding #6, ưu tiên thấp vì không cái nào chạy trong `dist/` đã build.
+- **Không phát hiện dấu hiệu typosquatting hay dependency-confusion** — mọi package đều quen thuộc, số lượt tải cao, đúng scope chính thức (`@nestjs/*`, `@prisma/*`, các thư viện ecosystem chuẩn). Không có cấu hình sai `.npmrc` liên quan scoped-registry.
+- **Không có pipeline CI/CD nào** (đã xác nhận không có thư mục `.github/`) — nằm ngoài phạm vi theo chỉ dẫn task, không báo lại.
+- **Không có pattern `curl | sh` / `apt-get` chưa xác thực** trong cả 2 Dockerfile — cả 2 đều dùng `corepack enable && corepack prepare pnpm@11.2.2 --activate`, 1 luồng đã ghim phiên bản, có checksum qua corepack, không phải kéo script tuỳ ý.
+
+### Persona 3 — Insider Threat (user nội bộ quyền thấp)
+
+- **Chỉ 1 bảng domain (`User`):** Chưa có endpoint nào expose danh sách `User` hàng loạt, nên không có bề mặt "export danh sách không giới hạn" để test — `UsersService` chỉ có `findById`, `findByEmail` (chỉ dùng nội bộ, trả về password hash, không bao giờ được gọi từ controller), và `create` bị stub throw lỗi.
+- **Khoảng trống mô hình quyền (Finding #8):** `TRAINER`/`TRAINEE` đều resolve về `[]` trong `ROLE_PERMISSIONS` — xác nhận qua đọc code trực tiếp và assertion 403 trong integration test cho TRAINEE với `@RequirePermissions('some:action')`. Hiện tại không có chuỗi permission nào mà non-admin thoả mãn được, nghĩa là cũng chưa có bề mặt leo thang đặc quyền để test (không có gì để leo thang *tới* — mọi route `@RequirePermissions()` mặc định chỉ admin dùng được cho tới khi map được điền). Ghi lại như 1 ghi chú giai đoạn thiết kế cho engineer tiếp theo, không phải lỗ hổng trong code hiện tại.
+- **Leo thang ngang (user A đọc dữ liệu user B):** Không test được — chưa có endpoint nào nhận id do user cung cấp để lấy record của user khác. `GET /auth/me` chỉ đọc id của chính người gọi từ JWT đã validate.
+- **Độ phủ audit trail (Finding #9):** Xác nhận không có audit log lưu trữ nào cho sự kiện auth. Log request của pino tồn tại nhưng redact header Authorization và không dùng được như audit trail có thể query. Ghi lại ở mức thông tin theo chỉ dẫn task ("ghi chú mức thông tin cho dự án con").
+- **Export dữ liệu hàng loạt qua query không giới hạn:** Chưa có endpoint dạng danh sách nào tồn tại trong skeleton này, nên không có bề mặt query-không-giới-hạn để kiểm tra.
+
+### Persona 4 — Infrastructure Attacker (kẻ tấn công hạ tầng)
+
+- **Dockerfile (`apps/api/Dockerfile`, `apps/web/Dockerfile`):** Cả 2 đều multi-stage, đều tạo và chuyển sang user non-root (`nestjs`/`nextjs`) trước `CMD`, đều dùng `--frozen-lockfile`, không nhúng secret nào làm build arg ngoại trừ `NEXT_PUBLIC_API_URL` trong image web — đây là biến môi trường **public** theo thiết kế của Next.js (cố ý nhúng vào bundle client, không phải secret). Không có `--privileged`, không mount host path, không có `CAP_SYS_ADMIN` ở cả 2 file hay trong `docker-compose.yaml`.
+- **`docker-compose.yaml`:** Service Postgres chỉ dùng cho dev local. `POSTGRES_PASSWORD: postgres` là mật khẩu mặc định hardcode — chấp nhận được cho dev local (khớp `DATABASE_URL` trong `.env.example`), không dùng hay tiếp cận được ngoài máy của dev (port `5433:5432` chỉ bind vào host, không có cấu hình lộ ra mạng ngoài). Không có file compose production nào (xác nhận, khớp tuyên bố rõ ràng trong README).
+- **Xử lý secret:** Cả `JWT_SECRET` và `DATABASE_URL` đều lấy từ `process.env`/`.env` (đã gitignore — xác nhận `.env.example` không chứa credential thật, chỉ có placeholder ghi nhãn rõ ràng `dev-placeholder-secret-not-for-production` và connection string Postgres chỉ dùng local với mật khẩu mặc định phổ biến). Không tìm thấy secret hardcode nào trong source qua review thủ công từng file đã đọc trong lần audit này (auth, config, seed script, Docker, compose).
+- **Bề mặt SSRF:** Không có lệnh gọi `fetch`/`axios`/`http.request`/`got` phía server nào trong `apps/api` nhận URL do user kiểm soát. Lệnh fetch ra ngoài duy nhất của `apps/web` (`http-client.ts`) luôn nhắm tới `BASE_URL` cố định theo cấu hình (`NEXT_PUBLIC_API_URL`), không bao giờ là URL do client cung cấp. Không tìm thấy vector SSRF nào — xác nhận qua review tương đương grep trên toàn bộ file đã đọc, không file nào dựng request ra ngoài từ input body/query.
+- **Endpoint nội bộ/debug:** `/health` là `@Public()` + `@ApiExcludeEndpoint()`, chỉ trả về chỉ báo up/down của Terminus (`{status: 'up'|'down', message?}` khi DB lỗi) — không có secret, không có stack trace, không lộ đường dẫn nội bộ. Không có endpoint debug/metrics nào khác.
+- **Lộ biến môi trường qua response:** Không có controller hay DTO nào echo giá trị `process.env`/`ConfigService` ngược ra HTTP response ở bất kỳ đâu trong codebase.
+
+### Giai đoạn 5 — Rà soát STRIDE/OWASP (lấp khoảng trống còn lại)
+
+Cả 6 danh mục STRIDE và 9/10 danh mục OWASP áp dụng được (A08 CI/CD Integrity không áp dụng — chưa có pipeline build nào) đã được phủ qua 4 persona ở trên; không có finding mới nào phát sinh trong lần rà soát này ngoài những gì đã liệt kê trong bảng. 2 điểm đáng nêu rõ là "đã kiểm tra, sạch":
+- **Tampering / CSRF:** Không có session dựa trên cookie nào (chỉ dùng bearer JWT qua header `Authorization`) — CSRF không áp dụng cho mô hình auth này theo đúng thiết kế.
+- **DoS / rate limiting:** Xác nhận `@nestjs/throttler` global 100 req/60s đã đăng ký trong `app.module.ts:73` trước `AccessControlModule` trong mảng imports; lưu ý về thứ tự `APP_GUARD` cross-module đã được ghi chú sẵn trong code comment và từng là chủ đề của bước verify thật bắt buộc từ red-team ở Phase 2 (không đào lại ở đây theo phạm vi task).
+
+---
+
+## Verify lại độc lập lần 2 (2026-07-31)
+
+Trước khi xoá folder `plans/` chứa bản gốc report này, đã tự verify lại 3 điểm quan trọng nhất thay vì tin nguyên báo cáo cũ:
+- `pnpm audit` chạy lại: **13 high / 10 moderate / 4 low / 0 critical** — khớp chính xác số trong báo cáo gốc.
+- Đọc trực tiếp `jwt.strategy.ts` và `role-permissions.ts` — khớp mô tả trong báo cáo.
+- Phát hiện thêm 1 chi tiết báo cáo gốc chưa nhắc: fallback `?? 'dev-placeholder-secret'` ở `jwt.strategy.ts:20` — verify chéo với `env.schema.ts:33` thì thấy app **từ chối boot ở production** nếu `JWT_SECRET` vẫn là giá trị mặc định, nên fallback này không exploit được. Không phải finding mới.
+
+**Kết luận không đổi: 0 lỗ hổng Nghiêm trọng, không có gì cần fix gấp.**
+
+---
+
+## Ghi chú vệ sinh credential
+
+Không tìm thấy secret thô, JWT, hay connection string kèm mật khẩu nhúng nào cần che trong báo cáo này — mọi giá trị có dạng credential gặp phải trong lần audit này (`dev-placeholder-secret-not-for-production` trong `.env.example`, `postgres`/`postgres` trong `docker-compose.yaml`, `admin12345` trong seed script) đều là placeholder dev-only đã ghi nhãn rõ ràng, được commit vào source control, không phải secret thật, và an toàn để trích dẫn nguyên văn theo quy tắc giảm false-positive của skill cho file `.example` và placeholder đã đánh dấu rõ.

@@ -53,6 +53,12 @@ Bẫy sâu hơn 1 lớp: `JwtStrategy.validate()` từng hardcode `role: 'ADMIN'
 
 Đây là cùng 1 loại lỗi với sự cố `process.env.DATABASE_URL` mà chính base template này từng gặp phải trong lúc xây dựng (xem lịch sử git / commit message) — code chạy được và trả lời thành công không phải là bằng chứng nó làm đúng việc. Bài học này là lý do `access-control.integration.spec.ts` tồn tại: test boundary thật (không token → 401, sai permission → 403, user không tồn tại trong DB → 401) là cách kiểm tra thật duy nhất, không phải "endpoint có phản hồi không".
 
+## Lưu ý bảo mật: JWT lưu ở localStorage
+
+`apps/web/lib/auth/auth-token.ts` lưu access token vào `localStorage`, gửi qua header `Authorization: Bearer` — không phải httpOnly cookie. Đây là trade-off có chủ đích: miễn nhiễm CSRF mặc định (đổi lại token có thể bị đọc nếu app có lỗ hổng XSS ở đâu đó). Chấp nhận được cho skeleton hiện tại vì chưa render bất kỳ nội dung nào do người dùng nhập.
+
+**Đổi sang httpOnly cookie khi dự án con thêm 1 trong các điều sau:** render nội dung user-generated (bài viết, comment, rich text editor), nhúng script/widget bên thứ 3 tuỳ ý, hoặc yêu cầu compliance (PCI-DSS/SOC2) đòi hỏi httpOnly session. Nếu không, giữ nguyên — đổi sớm hơn chỉ thêm effort (CSRF token, CORS `credentials`, backend set-cookie) để phòng rủi ro chưa tồn tại.
+
 ## Quyết định kiến trúc quan trọng nhất cần giữ lại
 
 Mọi response thành công đều được bọc envelope `{ statusCode, data }` bởi `TransformInterceptor`, và được document qua các class DTO envelope cụ thể cho từng endpoint kế thừa `ApiResponseDto` (không dùng pattern `allOf` chung — xem `apps/api/src/modules/README.md` để biết lý do, và khi nào nên chuyển sang pattern đó). Fetch mutator ở frontend (`apps/web/lib/api/http-client.ts`) **không** tự bóc lớp envelope này.

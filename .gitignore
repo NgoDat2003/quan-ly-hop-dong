@@ -42,7 +42,7 @@ output/
 outputs/
 
 # Local-only docs and generated test artifacts
-docs/
+# docs/
 tmp/
 test-results/
 # Documentation stays local; only the root technical README is tracked

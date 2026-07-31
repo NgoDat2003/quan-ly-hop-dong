@@ -235,6 +235,10 @@ import { useFeatureListFeatures, useFeatureCreateFeature } from '@/lib/api/gener
 // KHÔNG dùng trực tiếp trong component lớn kèm side-effect
 ```
 
+## Backlog: AppShell (chưa làm)
+
+Base hiện chỉ có `app/(auth)/login` — không có route group nào cho "sau khi đăng nhập" (`app/page.tsx` vẫn là placeholder). Việc tiếp theo sau khi auth thật đã xong: AppShell (sidebar + topbar + breadcrumb + mobile drawer + nav config lọc theo permission user thật). Lý do chưa làm: cần permission thật để lọc nav — đã ưu tiên làm auth trước (xem `.agent/projectRules/backend-architecture.md` → "Auth & Permissions"). Nên tách plan riêng, không gộp vào thay đổi auth/security.
+
 ## New Feature Checklist (Frontend)
 
 - [ ] `page.tsx` chỉ render, không business logic, không gọi Orval hook trực tiếp kèm side-effect
