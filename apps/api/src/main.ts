@@ -12,6 +12,7 @@ import { ValidationPipe, type LoggerService } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -30,6 +31,10 @@ async function bootstrap() {
   // scripts/styles that helmet's default CSP blocks. All other helmet
   // headers (HSTS, X-Content-Type-Options, etc.) stay active.
   app.use(helmet({ contentSecurityPolicy: false }));
+  // Required for JwtStrategy/AuthController to read the access/refresh
+  // cookies off incoming requests — without this, request.cookies is
+  // always undefined.
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

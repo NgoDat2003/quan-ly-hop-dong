@@ -2,10 +2,12 @@ import { Controller, ForbiddenException, Get, INestApplication, UnauthorizedExce
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { AccessControlModule } from './access-control.module';
 import { Public } from './decorators/public.decorator';
 import { RequirePermissions } from './decorators/require-permissions.decorator';
+import { ACCESS_COOKIE_NAME } from './constants/auth-cookie.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { validateEnv } from '../../config/env.schema';
@@ -37,6 +39,10 @@ class TestController {
   }
 }
 
+function withAccessCookie(token: string): string {
+  return `${ACCESS_COOKIE_NAME}=${token}`;
+}
+
 describe('Access control (integration)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
@@ -54,6 +60,10 @@ describe('Access control (integration)', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
+    // JwtStrategy reads the access token from a cookie (not the
+    // Authorization header) — without this middleware, request.cookies is
+    // always undefined and every request looks like it has no token.
+    app.use(cookieParser());
     await app.init();
     jwtService = moduleRef.get(JwtService);
   });
@@ -66,14 +76,14 @@ describe('Access control (integration)', () => {
     findById.mockReset();
   });
 
-  it('rejects request with no Authorization header (401)', async () => {
+  it('rejects request with no access cookie (401)', async () => {
     await request(app.getHttpServer()).get('/test/protected').expect(401);
   });
 
   it('rejects request with malformed JWT (401)', async () => {
     await request(app.getHttpServer())
       .get('/test/protected')
-      .set('Authorization', 'Bearer invalid.token.here')
+      .set('Cookie', withAccessCookie('invalid.token.here'))
       .expect(401);
   });
 
@@ -82,7 +92,7 @@ describe('Access control (integration)', () => {
     const token = await jwtService.signAsync({ sub: 'nonexistent-id' });
     await request(app.getHttpServer())
       .get('/test/protected')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', withAccessCookie(token))
       .expect(401);
   });
 
@@ -91,8 +101,17 @@ describe('Access control (integration)', () => {
     const token = await jwtService.signAsync({ sub: 'user-1' });
     await request(app.getHttpServer())
       .get('/test/protected')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', withAccessCookie(token))
       .expect(200);
+  });
+
+  it('rejects an EXPIRED access token (401)', async () => {
+    findById.mockResolvedValue({ id: 'user-1', email: 'trainee@example.com', name: 'Trainee', role: 'TRAINEE' });
+    const expiredToken = await jwtService.signAsync({ sub: 'user-1' }, { expiresIn: '-1s' });
+    await request(app.getHttpServer())
+      .get('/test/protected')
+      .set('Cookie', withAccessCookie(expiredToken))
+      .expect(401);
   });
 
   it('bypasses guard entirely for @Public() route, no token required', async () => {
@@ -104,7 +123,7 @@ describe('Access control (integration)', () => {
     const token = await jwtService.signAsync({ sub: 'user-1' });
     await request(app.getHttpServer())
       .get('/test/permission')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', withAccessCookie(token))
       .expect(403);
   });
 
@@ -113,7 +132,7 @@ describe('Access control (integration)', () => {
     const token = await jwtService.signAsync({ sub: 'admin-1' });
     await request(app.getHttpServer())
       .get('/test/permission')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', withAccessCookie(token))
       .expect(200);
   });
 

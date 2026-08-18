@@ -1,5 +1,3 @@
-import { getToken } from '@/lib/auth/auth-token';
-
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -11,6 +9,18 @@ export class ApiError extends Error {
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const REFRESH_PATH = '/auth/refresh';
+
+async function performFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${BASE_URL}${url}`, {
+    ...init,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...init?.headers,
+    },
+  });
+}
 
 // Orval's react-query client (fetch mode) calls the mutator as
 // customFetch<TResponse>(url, init), where TResponse is already the full
@@ -23,16 +33,25 @@ export const customFetch = async <
   url: string,
   init?: RequestInit,
 ): Promise<TResponse> => {
-  const token = getToken();
+  let response = await performFetch(url, init);
 
-  const response = await fetch(`${BASE_URL}${url}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  // Access token expired mid-session (15m TTL) — try one silent refresh and
+  // replay the original request. Exclude /auth/refresh itself from this
+  // retry path, or a failing refresh call would recursively trigger
+  // another refresh forever.
+  if (response.status === 401 && !url.endsWith(REFRESH_PATH)) {
+    let refreshResponse = await performFetch(REFRESH_PATH, { method: 'POST' });
+    // 409: another concurrent request refreshed this exact session first
+    // (benign race — backend's compare-and-swap rotate). Not a real
+    // logout, just means someone else already won the refresh — one more
+    // attempt now succeeds against the already-rotated cookie.
+    if (refreshResponse.status === 409) {
+      refreshResponse = await performFetch(REFRESH_PATH, { method: 'POST' });
+    }
+    if (refreshResponse.ok) {
+      response = await performFetch(url, init);
+    }
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));

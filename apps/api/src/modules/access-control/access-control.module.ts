@@ -13,13 +13,19 @@ import { PermissionsGuard } from './guards/permissions.guard';
   imports: [
     PassportModule,
     UsersModule,
+    // Registers the ACCESS token secret as the module-wide default — kept
+    // (not removed) specifically so JwtStrategy and access-control.
+    // integration.spec.ts's DI-injected JwtService keep working unchanged.
+    // Refresh tokens use a different secret, passed per-call via
+    // JwtSignOptions.secret in AuthService (see issueTokenBundle /
+    // verifyRefreshToken) — they deliberately do NOT use this default.
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (c: ConfigService): JwtModuleOptions => ({
-        secret: c.get<string>('JWT_SECRET') ?? 'dev-placeholder-secret',
+        secret: c.get<string>('JWT_ACCESS_SECRET') ?? 'dev-placeholder-access-secret',
         signOptions: {
-          expiresIn: c.get<string>('JWT_EXPIRES_IN') ?? '7d',
+          expiresIn: c.get<string>('JWT_ACCESS_TTL') ?? '15m',
         } as JwtModuleOptions['signOptions'],
       }),
     }),

@@ -1,9 +1,15 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy } from 'passport-jwt';
+import type { Request } from 'express';
 import { UsersService } from '../../users/users.service';
+import { ACCESS_COOKIE_NAME } from '../constants/auth-cookie.constants';
 import type { AuthUser } from '../decorators/current-user.decorator';
+
+function extractAccessTokenFromCookie(req: Request): string | null {
+  return req?.cookies?.[ACCESS_COOKIE_NAME] ?? null;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -15,9 +21,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // which would crash Nest bootstrap. Fallback keeps a fresh clone booting
     // with no .env file present.
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractAccessTokenFromCookie,
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET') ?? 'dev-placeholder-secret',
+      secretOrKey: config.get<string>('JWT_ACCESS_SECRET') ?? 'dev-placeholder-access-secret',
     });
   }
 

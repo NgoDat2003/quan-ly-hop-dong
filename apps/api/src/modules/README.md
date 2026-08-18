@@ -46,13 +46,9 @@ export class ThingResponseDto extends ApiResponseDto {
 
 **Ngưỡng nâng cấp envelope:** nếu các class wrapper cụ thể bắt đầu nhân lên khó chịu (nhiều endpoint, hoặc 1 shape phân trang dùng chung `{ data: T[], meta }`), chuyển sang pattern chung `ApiResponseDto<T>` + `@ApiExtraModels` + `getSchemaPath()` + decorator `allOf`. Pattern đó sinh ra OpenAPI schema inline thay vì entry `components/schemas` có tên riêng, nên phải kiểm tra kỹ tên output của Orval khi chuyển sang.
 
-## Những gì vẫn còn là stub trong base này
+## Trạng thái auth hiện tại
 
-- Mọi method body của `UsersService` và `AuthService`.
-- `JwtAuthGuard.canActivate` và `PermissionsGuard.canActivate` — cả 2 hiện tại đều `return true`.
-- `JwtStrategy.validate()` — trả về user hardcode, không bao giờ tra cứu thật.
-- `hasPermission()` trong `role-permissions.ts` — trả `true` vô điều kiện.
-- `useAuthActions().login` ở frontend — gọi endpoint thật nhưng không làm gì với kết quả.
+Auth (guard, `JwtStrategy`, `AuthService`, `AuthSessionsService`, permission check) đã implement thật — không phải stub. Chi tiết cơ chế (access+refresh token qua httpOnly cookie, rotate/revoke) xem [README.md gốc](../../../../README.md) mục "Lưu ý bảo mật: cookie-based auth + CSRF" và [`docs/backend-config-baseline-explained.md`](../../../../docs/backend-config-baseline-explained.md). Không lặp lại nội dung đó ở đây để tránh 2 nguồn sự thật lệch nhau.
 
 Kiểm tra quyền sở hữu (owner-hoặc-ADMIN) thuộc về **service**, sau khi đã load row lên — không đặt trong guard, vì guard không bao giờ thấy được row đó.
 

@@ -41,7 +41,9 @@ pnpm dev
 | --- | --- |
 | `UsersService.create` | Throw `not implemented` — không có endpoint đăng ký công khai, người dùng đầu tiên tạo qua seed script |
 
-Toàn bộ phần auth (`JwtAuthGuard`, `PermissionsGuard`, `JwtStrategy.validate()`, `hasPermission()`, `AuthService.login`/`me`, `useAuthActions().login`) đã implement thật, có test boundary chứng minh guard thực sự chặn request sai (xem `apps/api/src/modules/access-control/access-control.integration.spec.ts`).
+Toàn bộ phần auth (`JwtAuthGuard`, `PermissionsGuard`, `JwtStrategy.validate()`, `hasPermission()`, `AuthService.login`/`refresh`/`logout`/`me`, `AuthSessionsService`, `useAuthActions().login`) đã implement thật, có test boundary chứng minh guard thực sự chặn request sai (xem `apps/api/src/modules/access-control/access-control.integration.spec.ts`) và chứng minh rotate/revoke hoạt động thật ở tầng SQL, không chỉ ở tầng mock (xem `apps/api/src/modules/auth-sessions/auth-sessions.service.integration.spec.ts`).
+
+`AuthSessionsService.revokeAllUserSessions` hiện chỉ có 1 call site thật: nhánh phát hiện refresh token bị tái sử dụng (replay) trong `AuthService.refresh()`. **Chưa có endpoint đổi mật khẩu** — nếu dự án con thêm change-password, đó là nơi tự nhiên thứ 2 để gọi hàm này (đổi mật khẩu nên đá mọi thiết bị khác ra), nhưng tính năng đó chưa tồn tại trong base.
 
 ### Bài học lịch sử: vì sao "không báo lỗi rõ ràng" từng là bẫy nguy hiểm nhất ở đây
 
@@ -53,11 +55,15 @@ Bẫy sâu hơn 1 lớp: `JwtStrategy.validate()` từng hardcode `role: 'ADMIN'
 
 Đây là cùng 1 loại lỗi với sự cố `process.env.DATABASE_URL` mà chính base template này từng gặp phải trong lúc xây dựng (xem lịch sử git / commit message) — code chạy được và trả lời thành công không phải là bằng chứng nó làm đúng việc. Bài học này là lý do `access-control.integration.spec.ts` tồn tại: test boundary thật (không token → 401, sai permission → 403, user không tồn tại trong DB → 401) là cách kiểm tra thật duy nhất, không phải "endpoint có phản hồi không".
 
-## Lưu ý bảo mật: JWT lưu ở localStorage
+## Lưu ý bảo mật: cookie-based auth + CSRF
 
-`apps/web/lib/auth/auth-token.ts` lưu access token vào `localStorage`, gửi qua header `Authorization: Bearer` — không phải httpOnly cookie. Đây là trade-off có chủ đích: miễn nhiễm CSRF mặc định (đổi lại token có thể bị đọc nếu app có lỗ hổng XSS ở đâu đó). Chấp nhận được cho skeleton hiện tại vì chưa render bất kỳ nội dung nào do người dùng nhập.
+Access token (15 phút) và refresh token (7 ngày) lưu ở httpOnly cookie (`app_access_token` path `/`, `app_refresh_token` path `/auth`) — không phải `localStorage`/`Authorization: Bearer` như bản trước. `AuthSession` (Postgres) lưu hash của mỗi refresh token, cho phép revoke thật: `POST /auth/logout` revoke đúng session; nếu `POST /auth/refresh` phát hiện 1 refresh token cũ (đã rotate) bị dùng lại — dấu hiệu token đã bị đánh cắp — **toàn bộ session của user đó** bị revoke ngay (`AuthSessionsService.revokeAllUserSessions`), không chỉ session bị nghi ngờ.
 
-**Đổi sang httpOnly cookie khi dự án con thêm 1 trong các điều sau:** render nội dung user-generated (bài viết, comment, rich text editor), nhúng script/widget bên thứ 3 tuỳ ý, hoặc yêu cầu compliance (PCI-DSS/SOC2) đòi hỏi httpOnly session. Nếu không, giữ nguyên — đổi sớm hơn chỉ thêm effort (CSRF token, CORS `credentials`, backend set-cookie) để phòng rủi ro chưa tồn tại.
+**Đánh đổi bảo mật:** chuyển từ Bearer header sang cookie xóa bỏ miễn nhiễm CSRF mặc định mà thiết kế cũ có (browser không tự đính kèm header, nhưng tự đính kèm cookie vào mọi request cùng origin). Base template bù lại bằng 2 lớp phòng thủ:
+1. `SameSite=Lax` (access cookie) / `SameSite=Strict` (refresh cookie) — chặn phần lớn CSRF cho deploy cùng site (subdomain hoặc cùng domain).
+2. `OriginCheckGuard` (global) — chặn mọi request state-changing (POST/PUT/PATCH/DELETE) có header `Origin` khác `WEB_ORIGIN`.
+
+**Nếu dự án con deploy FE/BE ở 2 domain hoàn toàn khác nhau** (không phải subdomain), cookie cần `SameSite=None`, lúc đó 2 lớp phòng thủ trên là **chưa đủ** — bắt buộc tự thêm CSRF token đầy đủ (double-submit cookie hoặc tương đương). Base template mặc định chỉ hỗ trợ same-site deploy.
 
 ## Quyết định kiến trúc quan trọng nhất cần giữ lại
 
@@ -79,7 +85,7 @@ docker build -f apps/api/Dockerfile -t create-project-from-template-api .
 docker build -f apps/web/Dockerfile -t create-project-from-template-web --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001 .
 ```
 
-`next build` (standalone output) và `nest build` bên dưới đã được verify chạy thành công — nhưng lệnh `docker build`/`docker run` ở trên (build image thật qua Docker daemon) **chưa** được chạy thử trên máy thật. Hãy verify cả 2 trước khi dựa vào chúng cho việc gì thật sự quan trọng. Cả 2 chủ đích chỉ dừng lại ở mức "tạo ra được image chạy được". Không cái nào được nối vào 1 nền tảng deploy cụ thể (Dokploy, Vercel, K8s, VPS thuần, hay gì cũng được) — chọn và cấu hình nền tảng đó là việc của dự án cụ thể khi nó biết rõ target thật, không phải việc của base này. `docker-compose.yaml` ở đây chỉ dùng cho local dev (chỉ có Postgres); không có `docker-compose.prod.yaml`, không có CI/CD.
+`apps/api/Dockerfile` đã được verify chạy thật (`docker build` + `docker run` + login qua container thành công) khi thêm argon2 — cần Node 22 (không phải 20) để khớp `pnpm@11.2.2`, và cần build-toolchain (`python3 make g++`) trong 2 stage cần compile native addon (`argon2`), cả 2 điểm này đã sửa trong Dockerfile. `apps/web/Dockerfile` **chưa** được chạy thử `docker build`/`docker run` trên máy thật — verify trước khi dựa vào cho việc gì thật sự quan trọng. Cả 2 chủ đích chỉ dừng lại ở mức "tạo ra được image chạy được". Không cái nào được nối vào 1 nền tảng deploy cụ thể (Dokploy, Vercel, K8s, VPS thuần, hay gì cũng được) — chọn và cấu hình nền tảng đó là việc của dự án cụ thể khi nó biết rõ target thật, không phải việc của base này. `docker-compose.yaml` ở đây chỉ dùng cho local dev (chỉ có Postgres); không có `docker-compose.prod.yaml`, không có CI/CD.
 
 **Lưu ý cho Windows:** `output: 'standalone'` của `apps/web` cần tạo symlink trong bước thu thập trace của `next build`. Windows mặc định chặn việc này ngoài quyền Administrator hoặc Developer Mode (Settings → Privacy & Security → For Developers) — bật Developer Mode nếu `pnpm build` báo lỗi `EPERM: operation not permitted, symlink...`.
 

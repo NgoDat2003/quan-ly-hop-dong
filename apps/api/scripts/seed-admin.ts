@@ -4,10 +4,11 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import * as bcryptjs from 'bcryptjs';
+import * as argon2 from 'argon2';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { Role } from '../src/generated/prisma/enums';
+import { ARGON2_OPTIONS } from '../src/modules/auth/argon2-options.constant';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const ADMIN_PASSWORD = 'admin12345'; // dev-only seed password, không dùng cho production thật
@@ -20,7 +21,7 @@ async function seed() {
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
   const prisma = app.get(PrismaService);
-  const hashedPassword = await bcryptjs.hash(ADMIN_PASSWORD, 12);
+  const hashedPassword = await argon2.hash(ADMIN_PASSWORD, ARGON2_OPTIONS);
 
   await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },

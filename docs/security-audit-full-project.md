@@ -13,7 +13,7 @@
 - Không có CI/CD (`.github/`) — chọn nền tảng deploy để dự án cụ thể tự quyết định sau.
 - Không có refresh token, không có `/auth/register` công khai — theo YAGNI, dùng seed script thay thế.
 - JWT payload chỉ chứa `sub`; role luôn tra lại từ DB mỗi request (không nhét vào token).
-- Token lưu ở `localStorage` (không phải httpOnly cookie) — trade-off đã chấp nhận rõ ràng, có ghi chú rằng dự án thật cần cân nhắc lại nếu quan tâm chống XSS. Xem README mục "Lưu ý bảo mật: JWT lưu ở localStorage" cho điều kiện revisit cụ thể.
+- Token lưu ở `localStorage` (không phải httpOnly cookie) — trade-off đã chấp nhận rõ ràng, có ghi chú rằng dự án thật cần cân nhắc lại nếu quan tâm chống XSS. **[Cập nhật 2026-08-13]** Đã đổi sang httpOnly cookie — mục README này không còn tồn tại với tên cũ, xem "Lưu ý bảo mật: cookie-based auth + CSRF" trong `README.md` hiện tại.
 - Guard `JWT_SECRET` khi chạy production, chống timing-attack lúc login (dummy `bcryptjs.compare`), và bug tương tác `@Public()`+`@RequirePermissions()` đều đã được sửa và có test tự động bảo vệ (`access-control.integration.spec.ts`) — đã verify lại độc lập bên dưới, không báo lại là lỗi mới.
 - Structured logging (pino, `redact: ['req.headers.authorization']`), graceful shutdown, rate limiting (100 req/60s toàn cục), helmet, validate biến môi trường bằng zod — tất cả đã có sẵn và đã verify, không báo lại.
 
@@ -89,7 +89,7 @@ Phát hiện: 0 Nghiêm trọng, 5 Cao (đều là CVE dependency, không cái n
 ### Giai đoạn 5 — Rà soát STRIDE/OWASP (lấp khoảng trống còn lại)
 
 Cả 6 danh mục STRIDE và 9/10 danh mục OWASP áp dụng được (A08 CI/CD Integrity không áp dụng — chưa có pipeline build nào) đã được phủ qua 4 persona ở trên; không có finding mới nào phát sinh trong lần rà soát này ngoài những gì đã liệt kê trong bảng. 2 điểm đáng nêu rõ là "đã kiểm tra, sạch":
-- **Tampering / CSRF:** Không có session dựa trên cookie nào (chỉ dùng bearer JWT qua header `Authorization`) — CSRF không áp dụng cho mô hình auth này theo đúng thiết kế.
+- **Tampering / CSRF:** Auth hiện dùng access+refresh token qua httpOnly cookie (KHÔNG phải bearer JWT qua header `Authorization`) — CSRF KỲ ĐÓ là rủi ro thật vì browser tự động đính kèm cookie vào request cross-site. Đã thêm 2 lớp compensating control: (1) `SameSite=Lax` (access cookie) + `SameSite=Strict` (refresh cookie), (2) `OriginCheckGuard` (global) chặn request state-changing (POST/PUT/PATCH/DELETE) nếu header `Origin` khác `WEB_ORIGIN`. Xem chi tiết `docs/backend-config-baseline-explained.md` mục 3.7 và `README.md` mục "Lưu ý bảo mật: cookie-based auth + CSRF". **Chú ý giới hạn:** 2 control này đủ cho same-site deploy; nếu dự án con deploy FE/BE ở domain khác nhau (không phải subdomain), cần thêm CSRF token đầy đủ (double-submit hoặc tương tự).
 - **DoS / rate limiting:** Xác nhận `@nestjs/throttler` global 100 req/60s đã đăng ký trong `app.module.ts:73` trước `AccessControlModule` trong mảng imports; lưu ý về thứ tự `APP_GUARD` cross-module đã được ghi chú sẵn trong code comment và từng là chủ đề của bước verify thật bắt buộc từ red-team ở Phase 2 (không đào lại ở đây theo phạm vi task).
 
 ---

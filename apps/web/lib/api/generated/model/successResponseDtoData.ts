@@ -4,8 +4,5 @@
  * Training App API
  * OpenAPI spec version: 1.0.0
  */
-import type { UserResponseDto } from './userResponseDto';
 
-export interface AuthResultDto {
-  user: UserResponseDto;
-}
+export type SuccessResponseDtoData = { [key: string]: unknown };

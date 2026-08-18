@@ -26,6 +26,7 @@ import type {
 import type {
   AuthLoginResponseDto,
   LoginDto,
+  SuccessResponseDto,
   UserEnvelopeDto
 } from '../model';
 
@@ -132,6 +133,170 @@ export const useAuthLogin = <TError = unknown,
         TContext
       > => {
       return useMutation(getAuthLoginMutationOptions(options), queryClient);
+    }
+    export type authRefreshResponse200 = {
+  data: SuccessResponseDto
+  status: 200
+}
+
+export type authRefreshResponseSuccess = (authRefreshResponse200) & {
+  headers: Headers;
+};
+;
+
+export type authRefreshResponse = (authRefreshResponseSuccess)
+
+export const getAuthRefreshUrl = () => {
+
+
+
+
+  return `/auth/refresh`
+}
+
+/**
+ * @summary Refresh access token
+ */
+export const authRefresh = async ( options?: Parameters<typeof customFetch>[1]): Promise<authRefreshResponse> => {
+
+  return customFetch<authRefreshResponse>(getAuthRefreshUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthRefreshMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authRefresh>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof authRefresh>>, TError,void, TContext> => {
+
+const mutationKey = ['authRefresh'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authRefresh>>, void> = () => {
+
+
+          return  authRefresh(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthRefreshMutationResult = NonNullable<Awaited<ReturnType<typeof authRefresh>>>
+
+    export type AuthRefreshMutationError = unknown
+
+    /**
+ * @summary Refresh access token
+ */
+export const useAuthRefresh = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authRefresh>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authRefresh>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAuthRefreshMutationOptions(options), queryClient);
+    }
+    export type authLogoutResponse200 = {
+  data: SuccessResponseDto
+  status: 200
+}
+
+export type authLogoutResponseSuccess = (authLogoutResponse200) & {
+  headers: Headers;
+};
+;
+
+export type authLogoutResponse = (authLogoutResponseSuccess)
+
+export const getAuthLogoutUrl = () => {
+
+
+
+
+  return `/auth/logout`
+}
+
+/**
+ * @summary Logout current session
+ */
+export const authLogout = async ( options?: Parameters<typeof customFetch>[1]): Promise<authLogoutResponse> => {
+
+  return customFetch<authLogoutResponse>(getAuthLogoutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthLogoutMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext> => {
+
+const mutationKey = ['authLogout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLogout>>, void> = () => {
+
+
+          return  authLogout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLogoutMutationResult = NonNullable<Awaited<ReturnType<typeof authLogout>>>
+
+    export type AuthLogoutMutationError = unknown
+
+    /**
+ * @summary Logout current session
+ */
+export const useAuthLogout = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof authLogout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAuthLogoutMutationOptions(options), queryClient);
     }
     export type authGetMeResponse200 = {
   data: UserEnvelopeDto

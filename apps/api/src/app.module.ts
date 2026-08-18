@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { validateEnv, type AppEnv } from './config/env.schema';
+import { OriginCheckGuard } from './common/guards/origin-check.guard';
 
 @Module({
   imports: [
@@ -37,7 +38,13 @@ import { validateEnv, type AppEnv } from './config/env.schema';
             // entry for them. If a future change adds a req.body
             // serializer (e.g. for debugging), extend this redact list
             // to cover credential fields in the body too.
-            redact: ['req.headers.authorization'],
+            // req.headers.cookie / res.headers['set-cookie'] added
+            // alongside authorization: access/refresh tokens now travel as
+            // cookies (see AuthController), not just the Bearer header —
+            // both header directions need redacting or a token leaks into
+            // log output/aggregators the same way an unredacted
+            // Authorization header would.
+            redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
             transport:
               nodeEnv === 'production'
                 ? undefined
@@ -78,6 +85,13 @@ import { validateEnv, type AppEnv } from './config/env.schema';
     HealthModule,
   ],
   controllers: [],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Origin check doesn't depend on request.user or any other guard's
+    // output, so its position relative to JwtAuthGuard/PermissionsGuard
+    // (registered in AccessControlModule) doesn't matter — unlike those
+    // two, which do have a real ordering dependency on each other.
+    { provide: APP_GUARD, useClass: OriginCheckGuard },
+  ],
 })
 export class AppModule {}
