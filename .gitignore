@@ -78,3 +78,4 @@ pnpm-debug.log*
 # schema.prisma via `pnpm --filter=api prisma:generate`, not committed.
 # Unlike apps/web/lib/api/generated/ (Orval), this one IS gitignored.
 apps/api/src/generated/
+docs
