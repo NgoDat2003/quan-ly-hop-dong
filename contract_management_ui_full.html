@@ -1,0 +1,2774 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinh Hoa Lease — Full Hybrid Interactive Interface & Role RBAC Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- ApexCharts for Interactive Production Data Charts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+/* =========================================================
+   DESIGN TOKENS — Industrial / Utilitarian Theme (OKLCH)
+   ========================================================= */
+:root {
+  /* Typography Scale */
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Source Sans 3', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --fs-xs: 0.75rem;     /* 12px */
+  --fs-sm: 0.875rem;    /* 14px */
+  --fs-base: 1rem;      /* 16px */
+  --fs-md: 1.1875rem;   /* 19px */
+  --fs-lg: 1.375rem;    /* 22px */
+  --fs-xl: 1.625rem;    /* 26px */
+  --fs-2xl: 2rem;       /* 32px */
+
+  /* Spacing Scale (4pt) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+
+  /* Colors — Industrial Concrete tinted cool */
+  --c-bg: oklch(0.97 0.005 250);
+  --c-surface: oklch(1 0.003 250);
+  --c-surface-raised: oklch(0.985 0.004 250);
+  --c-border: oklch(0.88 0.008 250);
+  --c-border-subtle: oklch(0.93 0.006 250);
+  --c-text: oklch(0.18 0.01 250);
+  --c-text-secondary: oklch(0.45 0.01 250);
+  --c-text-muted: oklch(0.58 0.008 250);
+
+  /* Single Escalated Accent — Refined Warm Ember / Terracotta (Chống chói/cháy) */
+  --c-accent: oklch(0.58 0.12 48);
+  --c-accent-hover: oklch(0.52 0.13 48);
+  --c-accent-subtle: oklch(0.96 0.025 48);
+  --c-accent-text: #ffffff;
+
+  /* Contract Expiry Alert Tokens */
+  --alert-green: oklch(0.62 0.17 145);
+  --alert-green-bg: oklch(0.92 0.06 145);
+  --alert-yellow: oklch(0.78 0.16 85);
+  --alert-yellow-bg: oklch(0.94 0.05 85);
+  --alert-red: oklch(0.58 0.22 25);
+  --alert-red-bg: oklch(0.92 0.05 25);
+  --c-danger: var(--alert-red);
+
+  /* Radius System */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --dur-fast: 150ms;
+}
+
+/* Base Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  color: var(--c-text);
+  background: var(--c-bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* DEMO CONTROL BAR (Industrial Refined) */
+.role-control-bar {
+  background: var(--c-surface);
+  border-bottom: 2px solid var(--c-text);
+  padding: var(--sp-2) var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+  position: sticky;
+  top: 0;
+  z-index: 2000;
+}
+
+.role-control-bar .bar-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-accent);
+}
+
+.role-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.role-btn {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-secondary);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--fs-xs);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.role-btn:hover { border-color: var(--c-accent); color: var(--c-text); }
+.role-btn.active {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-accent-text);
+}
+
+/* APP SHELL LAYOUT */
+.app-shell {
+  display: flex;
+  min-height: calc(100vh - 41px);
+}
+
+/* Sidebar */
+aside.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--c-surface);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-brand {
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--c-accent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* User Badge with Pulse Online Dot */
+.user-badge {
+  padding: var(--sp-3) var(--sp-6);
+  background: var(--c-bg);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.avatar-container {
+  position: relative;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--c-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  color: var(--c-text-secondary);
+}
+
+.pulse-status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
+  background-color: var(--alert-green);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0); }
+}
+
+.user-meta .name { font-weight: 600; font-size: var(--fs-xs); }
+.user-meta .role {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-accent);
+}
+
+.nav-label {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--c-text-muted);
+  padding: var(--sp-4) var(--sp-6) var(--sp-1);
+  font-weight: 600;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-6);
+  color: var(--c-text-secondary);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.nav-item:hover {
+  background: var(--c-accent-subtle);
+  color: var(--c-text);
+}
+
+.nav-item.active {
+  background: var(--c-accent-subtle);
+  color: var(--c-accent);
+  font-weight: 600;
+  border-left-color: var(--c-accent);
+}
+
+.nav-item svg { width: 16px; height: 16px; opacity: 0.65; }
+.nav-item.active svg { opacity: 1; stroke: var(--c-accent); }
+
+/* Main Viewport */
+main.main-viewport {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.top-header {
+  height: 54px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  padding: 0 var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.breadcrumb {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+.breadcrumb strong { color: var(--c-text); font-weight: 600; }
+
+.search-input-wrapper {
+  position: relative;
+  width: 260px;
+}
+.search-input-wrapper input {
+  width: 100%;
+  height: 32px;
+  padding: 0 32px 0 12px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  color: var(--c-text);
+}
+.search-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--c-accent);
+}
+.kbd-badge {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--c-text-muted);
+}
+
+.view-content {
+  padding: var(--sp-6);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.view-pane { display: none; }
+.view-pane.active { display: block; }
+
+/* Component Cards */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-6);
+  margin-bottom: var(--sp-6);
+}
+
+.card-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--c-border-subtle);
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Stat Cards Grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.stat-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  position: relative;
+}
+.stat-card.alert-green { border-left: 3px solid var(--alert-green); }
+.stat-card.alert-yellow { border-left: 3px solid var(--alert-yellow); }
+.stat-card.alert-red { border-left: 3px solid var(--alert-red); }
+
+.stat-card-label {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-muted);
+}
+
+.stat-card-value {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  margin: var(--sp-1) 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card-sub {
+  font-size: var(--fs-xs);
+  color: var(--c-text-secondary);
+}
+
+/* Data Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-muted);
+  background: var(--c-bg);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 2px solid var(--c-border);
+  text-align: left;
+}
+
+.data-table td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--c-border-subtle);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background var(--duration-instant) var(--ease-out-quart);
+}
+
+.data-table tbody tr:hover {
+  background: var(--c-accent-subtle);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid;
+}
+.badge-green { background: var(--alert-green-bg); color: var(--alert-green); border-color: var(--alert-green); }
+.badge-yellow { background: var(--alert-yellow-bg); color: oklch(0.55 0.14 85); border-color: var(--alert-yellow); }
+.badge-red { background: var(--alert-red-bg); color: var(--alert-red); border-color: var(--alert-red); }
+.badge-neutral { background: var(--c-bg); color: var(--c-text-secondary); border-color: var(--c-border); }
+.badge-accent { background: var(--c-accent-subtle); color: var(--c-accent); border-color: var(--c-accent); }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: transform var(--duration-instant) var(--ease-out-quart), background var(--duration-fast) var(--ease-out-quart);
+  min-height: 34px;
+}
+
+.btn:hover { background: var(--c-bg); }
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--c-accent);
+  color: var(--c-accent-text);
+  border-color: var(--c-accent);
+}
+.btn-primary:hover { background: var(--c-accent-hover); }
+
+.btn-sm { padding: var(--sp-1) var(--sp-3); font-size: var(--fs-xs); min-height: 28px; }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-ghost:hover { background: var(--c-accent-subtle); }
+
+/* Form Elements */
+.form-group { margin-bottom: var(--sp-4); }
+.form-label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-muted);
+  font-weight: 600;
+  margin-bottom: var(--sp-1);
+}
+
+.form-input, .form-select {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  transition: border-color var(--dur-fast);
+}
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: var(--c-accent);
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.active { display: flex; }
+
+.modal-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 560px;
+  overflow: hidden;
+}
+
+.modal-card-header {
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-card-body { padding: var(--sp-6); max-height: 70vh; overflow-y: auto; }
+.modal-card-footer {
+  padding: var(--sp-4) var(--sp-6);
+  background: var(--c-bg);
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+/* Timeline Stream & Refined Diff Panel */
+.timeline-stream {
+  position: relative;
+  padding-left: var(--sp-6);
+}
+.timeline-stream::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--c-border);
+}
+
+.timeline-event {
+  position: relative;
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out-quart);
+}
+
+.timeline-event:hover {
+  background: var(--c-surface-raised);
+  border-color: var(--c-border-subtle);
+}
+
+.timeline-event.active {
+  background: var(--c-surface);
+  border-color: var(--c-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.timeline-event-dot {
+  position: absolute;
+  left: calc(-1 * var(--sp-6) + 4px);
+  top: 16px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--c-border);
+  background: var(--c-surface);
+  transition: all var(--dur-fast);
+}
+
+.timeline-event:hover .timeline-event-dot,
+.timeline-event.active .timeline-event-dot {
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+  box-shadow: 0 0 0 3px oklch(0.58 0.12 48 / 0.25);
+}
+
+.diff-history-card {
+  font-family: var(--font-body);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--c-surface);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+.diff-header-bar {
+  padding: 10px 16px;
+  background: oklch(0.98 0.002 250);
+  border-bottom: 1px solid var(--c-border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.diff-badge-old {
+  display: inline-block;
+  background: oklch(0.96 0.02 15);
+  color: oklch(0.48 0.16 15);
+  border: 1px solid oklch(0.90 0.04 15);
+  text-decoration: line-through;
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.diff-badge-new {
+  display: inline-block;
+  background: oklch(0.96 0.02 145);
+  color: oklch(0.38 0.14 145);
+  border: 1px solid oklch(0.88 0.05 145);
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: normal;
+  max-width: 100%;
+}
+
+/* Toasts */
+.toast-wrap {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.toast-msg {
+  background: var(--c-text);
+  color: white;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+</style>
+</head>
+<body>
+
+<!-- DEMO CONTROL BAR -->
+<div class="role-control-bar">
+  <span class="bar-title">Actor Role Switcher (Strict RBAC Boundary Simulation):</span>
+  <div class="role-selector">
+    <span style="color: var(--c-text-muted); margin-right: 4px;">Đang chọn vai trò:</span>
+    <button class="role-btn active" id="role-btn-site" onclick="switchRole('Site')">Site</button>
+    <button class="role-btn" id="role-btn-ketoan" onclick="switchRole('Kế toán')">Kế toán</button>
+    <button class="role-btn" id="role-btn-legal" onclick="switchRole('Legal')">Legal</button>
+    <button class="role-btn" id="role-btn-admin" onclick="switchRole('Admin')">Admin</button>
+  </div>
+</div>
+
+<div class="app-shell">
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="sidebar-brand" style="display:flex; align-items:center; gap:var(--sp-3);">
+      <div class="brand-logo" style="width:36px; height:36px; background:#ffffff; border-radius:var(--radius-sm); border:1px solid var(--c-border); padding:2px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <img src="vinhhoa-logo.webp" alt="Vinh Hoa Logo" style="width:100%; height:100%; object-fit:contain; border-radius:3px;">
+      </div>
+      <div>
+        <div class="brand-title" style="font-family:var(--font-display); font-weight:700; font-size:var(--fs-md); text-transform:uppercase; letter-spacing:0.03em; color:var(--c-text); line-height:1.2;">Quản Lý Hợp Đồng</div>
+        <div style="font-size:10px; color:var(--c-text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Vinh Hoa Portal</div>
+      </div>
+    </div>
+
+    <!-- User Badge with Pulse Online Dot -->
+    <div class="user-badge">
+      <div class="avatar-container">
+        <div class="avatar" id="user-avatar">S</div>
+        <div class="pulse-status-dot"></div>
+      </div>
+      <div class="user-meta">
+        <div class="name" id="user-name-display">Nguyễn Văn Site</div>
+        <div class="role" id="user-role-display">Role: Site</div>
+      </div>
+    </div>
+
+    <div class="nav-label">Nghiệp Vụ Phân Quyền</div>
+    <ul class="nav-list">
+      <!-- 1. Dashboard: Accessible by all roles -->
+      <li class="nav-item active" id="nav-dashboard" onclick="switchView('view-dashboard')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        Dashboard Tổng Quan
+      </li>
+
+      <!-- 2. Hồ sơ mặt bằng: Hidden for Legal -->
+      <li class="nav-item role-nav-item" id="nav-properties" onclick="switchView('view-properties')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        Hồ Sơ Mặt Bằng (FR-1)
+      </li>
+
+      <!-- 3. Tạo mặt bằng / OCR: Only for Site & Admin -->
+      <li class="nav-item role-nav-item" id="nav-property-wizard" onclick="switchView('view-property-wizard')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Tạo Mặt Bằng / OCR PDF
+      </li>
+
+      <!-- 4. Danh sách hợp đồng: Hidden for Site -->
+      <li class="nav-item role-nav-item" id="nav-contracts" onclick="switchView('view-contracts')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Danh Sách Hợp Đồng (FR-2)
+      </li>
+
+      <!-- 5. Tiến độ thanh toán & SAP: Accessible by Kế toán & Admin (FR-3 & FR-8) -->
+      <li class="nav-item role-nav-item" id="nav-payments" onclick="switchView('view-payments')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Tiến Độ Thanh Toán (FR-3)
+      </li>
+    </ul>
+
+    <!-- 5. Quản lý hệ thống: Only for Admin -->
+    <div class="nav-label admin-only" id="admin-nav-label" style="display:none;">Hệ Thống (Admin Only)</div>
+    <ul class="nav-list admin-only" id="admin-nav-list" style="display:none;">
+      <li class="nav-item" id="nav-users" onclick="switchView('view-users')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Quản Lý Người Dùng (FR-6)
+      </li>
+    </ul>
+
+    <div style="margin-top: auto; padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--c-border);">
+      <button class="btn btn-ghost btn-sm" style="width:100%; justify-content: flex-start;" onclick="switchView('view-login')">
+        🚪 Màn hình Đăng Nhập
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="main-viewport">
+    <div class="top-header">
+      <div class="breadcrumb">
+        Vinh Hoa Portal / <strong id="breadcrumb-title">Dashboard Tổng Quan</strong>
+      </div>
+      <div style="display:flex; align-items:center; gap: var(--sp-3);">
+        <div class="search-input-wrapper">
+          <input type="text" placeholder="Tìm kiếm nhanh... (Ctrl+K)">
+          <span class="kbd-badge">Ctrl+K</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="triggerToast('Không có thông báo mới')">🔔</button>
+      </div>
+    </div>
+
+    <div class="view-content">
+      <!-- ================= VIEW 1: DASHBOARD (DYNAMIC BY ROLE) ================= -->
+      <div id="view-dashboard" class="view-pane active">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--sp-6);">
+          <div>
+            <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;" id="dashboard-role-title">Dashboard Tổng Quan Operations</h1>
+            <p style="color: var(--c-text-secondary); font-size: var(--fs-sm);" id="dashboard-role-sub">Giao diện điều hành chuyên biệt được cá nhân hóa theo vai trò người dùng</p>
+          </div>
+          <button class="btn btn-sm" onclick="openExcelExportModal()">📄 Xuất Báo Cáo Excel (FR-8)</button>
+        </div>
+
+        <!-- Role Banner Notice -->
+        <div id="role-dashboard-banner" style="background:var(--c-accent-subtle); border:1px solid var(--c-accent); padding:var(--sp-3) var(--sp-4); border-radius:var(--radius-md); font-size:var(--fs-xs); margin-bottom:var(--sp-6); display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <strong>🛡️ Phạm Vi Phân Quyền Vai Trò: <span id="banner-role-name">Site</span></strong>
+            <span style="color:var(--c-text-secondary); margin-left:8px;" id="banner-role-desc">Bạn có quyền khởi tạo hồ sơ mặt bằng và upload file PDF hợp đồng gốc (FR-1).</span>
+          </div>
+          <span class="badge badge-accent">RBAC Active</span>
+        </div>
+
+        <!-- Stat Cards Grid (Dynamic) -->
+        <div class="stat-grid" id="dashboard-stat-grid">
+          <!-- Will be rendered dynamically based on role -->
+        </div>
+
+        <!-- ApexCharts Interactive Bar Chart Integration -->
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: var(--sp-6);">
+          <div class="card">
+            <div class="card-header-bar">
+              <span class="card-title" id="chart-card-title">Phân Bổ Hợp Đồng Theo Tháng</span>
+              <span class="badge badge-accent">ApexCharts Live</span>
+            </div>
+            <div id="apex-dashboard-chart" style="min-height: 220px;"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header-bar">
+              <span class="card-title">Cảnh Báo / Tác vụ trọng tâm</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap: var(--sp-3);" id="dashboard-right-tasks">
+              <div style="border-bottom:1px solid var(--c-border-subtle); padding-bottom:var(--sp-2); cursor:pointer;" onclick="openDetailPage('HD-2026-0198')">
+                <div style="display:flex; justify-content:space-between; font-size:var(--fs-sm);">
+                  <strong style="color:var(--alert-red);">🔴 HD-2026-0198</strong>
+                  <span class="mono" style="color:var(--c-text-muted);">15 ngày</span>
+                </div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-secondary);">45 Lê Lợi, Q.3 &bull; Chủ nhà: Trần Thị B</div>
+              </div>
+              <div style="border-bottom:1px solid var(--c-border-subtle); padding-bottom:var(--sp-2); cursor:pointer;" onclick="openDetailPage('HD-2026-0201')">
+                <div style="display:flex; justify-content:space-between; font-size:var(--fs-sm);">
+                  <strong style="color:var(--alert-yellow);">🟡 HD-2026-0201</strong>
+                  <span class="mono" style="color:var(--c-text-muted);">62 ngày</span>
+                </div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-secondary);">78 Hai Bà Trưng, Q.1 &bull; Chủ nhà: Lê Văn C</div>
+              </div>
+              <div style="cursor:pointer;" onclick="openDetailPage('HD-2026-0247')">
+                <div style="display:flex; justify-content:space-between; font-size:var(--fs-sm);">
+                  <strong style="color:var(--alert-green);">🟢 HD-2026-0247</strong>
+                  <span class="mono" style="color:var(--c-text-muted);">920 ngày</span>
+                </div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-secondary);">123 Nguyễn Huệ, Q.1 &bull; Nguyễn Văn A</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 2: PROPERTY LIST (SITE, KẾ TOÁN, ADMIN) ================= -->
+      <div id="view-properties" class="view-pane">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--sp-6);">
+          <div>
+            <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;">Danh Sách Hồ Sơ Mặt Bằng (FR-1)</h1>
+            <p style="color: var(--c-text-secondary); font-size: var(--fs-sm);">Hồ sơ địa điểm thuê vật lý/pháp lý do bộ phận Site khởi tạo và Kế toán quản lý</p>
+          </div>
+          <button class="btn btn-primary site-only" onclick="switchView('view-property-wizard')">+ Tạo Mặt Bằng Mới</button>
+        </div>
+
+        <div class="card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mã HĐ Gốc</th>
+                <th>Địa Chỉ Mặt Bằng</th>
+                <th>Quận / Tỉnh</th>
+                <th>Diện Tích</th>
+                <th>Chủ Cho Thuê</th>
+                <th>File PDF Signed</th>
+                <th>Thao Tác Nghiệp Vụ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:600;">HD-2026-0247</td>
+                <td>123 Nguyễn Huệ, Phường Bến Nghé</td>
+                <td>Quận 1, TP.HCM</td>
+                <td class="mono">120 m²</td>
+                <td>Nguyễn Văn A</td>
+                <td><span class="badge badge-accent" style="cursor:pointer;" onclick="openPdfModal('HD-2026-0247-signed.pdf')">📄 PDF Signed</span></td>
+                <td>
+                  <button class="btn btn-sm btn-ghost edit-property-btn" onclick="handleEditPropertyClick('HD-2026-0247')">Sửa (Kế toán)</button>
+                  <button class="btn btn-sm btn-primary" onclick="openDetailPage('HD-2026-0247')">Trang Chi Tiết</button>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">HD-2026-0198</td>
+                <td>45 Lê Lợi, Phường Bến Thành</td>
+                <td>Quận 1, TP.HCM</td>
+                <td class="mono">85 m²</td>
+                <td>Trần Thị B</td>
+                <td><span class="badge badge-accent" style="cursor:pointer;" onclick="openPdfModal('HD-2026-0198-signed.pdf')">📄 PDF Signed</span></td>
+                <td>
+                  <button class="btn btn-sm btn-ghost edit-property-btn" onclick="handleEditPropertyClick('HD-2026-0198')">Sửa (Kế toán)</button>
+                  <button class="btn btn-sm btn-primary" onclick="openDetailPage('HD-2026-0198')">Trang Chi Tiết</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 3: CONTRACT LIST (KẾ TOÁN, LEGAL, ADMIN) ================= -->
+      <div id="view-contracts" class="view-pane">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--sp-6);">
+          <div>
+            <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;">Quản Lý Hợp Đồng Thuê (FR-2)</h1>
+            <p style="color: var(--c-text-secondary); font-size: var(--fs-sm);">Theo dõi danh sách hợp đồng, bảng giá giai đoạn &amp; cảnh báo 2 luồng (Hết hạn &amp; Tăng giá)</p>
+          </div>
+          <button class="btn btn-primary ketoan-only" onclick="openCreateContractModal()">+ Tạo Hợp Đồng Mới (Kế toán)</button>
+        </div>
+
+
+        <div class="card">
+          <div style="display:flex; gap: var(--sp-3); margin-bottom: var(--sp-4); flex-wrap: wrap;">
+            <input type="text" class="form-input" style="width: 240px;" placeholder="Lọc theo mã HĐ, chủ nhà...">
+            <select class="form-select" style="width: 160px;">
+              <option>-- Quận / Huyện --</option>
+              <option>Quận 1</option>
+              <option>Quận 3</option>
+            </select>
+            <select class="form-select" style="width: 160px;">
+              <option>-- Mức Cảnh Báo Hạn --</option>
+              <option>🟢 Mức Xanh (>90d)</option>
+              <option>🟡 Mức Vàng (30-90d)</option>
+              <option>🔴 Mức Đỏ (<30d)</option>
+            </select>
+            <select class="form-select" style="width: 170px;">
+              <option>-- Cảnh Báo Tăng Giá --</option>
+              <option>🟢 Giá ổn định</option>
+              <option>🟠 Sắp tăng giá (<60d)</option>
+              <option>🔴 Đã đến mốc tăng giá</option>
+            </select>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Mã Hợp Đồng</th>
+                <th>Địa Chỉ Mặt Bằng</th>
+                <th>Chủ Cho Thuê</th>
+                <th>Bắt Đầu HĐ</th>
+                <th>Kết Thúc HĐ</th>
+                <th>Cảnh Báo Hết Hạn (Legal FR-4)</th>
+                <th>Cảnh Báo Tăng Giá (Kế Toán FR-2.2)</th>
+                <th>Thao Tác Nghiệp Vụ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:600;">HD-2026-0247</td>
+                <td>123 Nguyễn Huệ, Q.1</td>
+                <td>Nguyễn Văn A</td>
+                <td class="mono">01/03/2026</td>
+                <td class="mono">28/02/2029</td>
+                <td><span class="badge badge-green">🟢 Xanh (>90 ngày)</span></td>
+                <td><span class="badge badge-green">🟢 Giá ổn định</span></td>
+                <td>
+                  <button class="btn btn-sm btn-ghost" onclick="openQuickViewModal('HD-2026-0247')">🔍 Xem Nhanh</button>
+                  <button class="btn btn-sm btn-primary" onclick="openDetailPage('HD-2026-0247')">Trang Chi Tiết</button>
+                  <button class="btn btn-sm btn-ghost legal-only" style="display:none;" onclick="openOtpModal('HD-2026-0247')">⚙ Cảnh Báo (2FA)</button>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">HD-2026-0198</td>
+                <td>45 Lê Lợi, Q.3</td>
+                <td>Trần Thị B</td>
+                <td class="mono">15/01/2024</td>
+                <td class="mono">14/01/2027</td>
+                <td><span class="badge badge-red">🔴 Đỏ (<30 ngày)</span></td>
+                <td><span class="badge badge-yellow">🟠 Sắp tăng giá (<60d)</span></td>
+                <td>
+                  <button class="btn btn-sm btn-ghost" onclick="openQuickViewModal('HD-2026-0198')">🔍 Xem Nhanh</button>
+                  <button class="btn btn-sm btn-primary" onclick="openDetailPage('HD-2026-0198')">Trang Chi Tiết</button>
+                  <button class="btn btn-sm btn-ghost legal-only" style="display:none;" onclick="openOtpModal('HD-2026-0198')">⚙ Cảnh Báo (2FA)</button>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-weight:600;">HD-2026-0201</td>
+                <td>78 Hai Bà Trưng, Q.1</td>
+                <td>Lê Văn C</td>
+                <td class="mono">01/06/2024</td>
+                <td class="mono">31/05/2027</td>
+                <td><span class="badge badge-yellow">🟡 Vàng (30-90 ngày)</span></td>
+                <td><span class="badge badge-red">🔴 Đã đến mốc tăng giá</span></td>
+                <td>
+                  <button class="btn btn-sm btn-ghost" onclick="openQuickViewModal('HD-2026-0201')">🔍 Xem Nhanh</button>
+                  <button class="btn btn-sm btn-primary" onclick="openDetailPage('HD-2026-0201')">Trang Chi Tiết</button>
+                  <button class="btn btn-sm btn-ghost legal-only" style="display:none;" onclick="openOtpModal('HD-2026-0201')">⚙ Cảnh Báo (2FA)</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 5: DEDICATED PAYMENT MANAGEMENT & SAP EXPORT (FR-3 & FR-8) ================= -->
+      <div id="view-payments" class="view-pane">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: var(--sp-6);">
+          <div>
+            <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;">Quản Lý Tiến Độ Thanh Toán &amp; Kết Xuất SAP (FR-3 &amp; FR-8)</h1>
+            <p style="color: var(--c-text-muted); font-size: var(--fs-sm); margin-top: 4px;">
+              Kế toán chọn đợt thanh toán (Từ tháng ➔ Đến tháng), hệ thống tự động đối soát đơn giá giai đoạn &amp; kết xuất file SAP.
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="triggerSapBulkExport()">📄 Xuất Excel SAP (Đã Chọn)</button>
+        </div>
+
+        <div class="card">
+          <!-- Top Filter Bar -->
+          <div style="display:flex; flex-wrap:wrap; gap: var(--sp-4); align-items:center; margin-bottom: var(--sp-4); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--c-border);">
+            <div style="display:flex; align-items:center; gap: var(--sp-2);">
+              <span style="font-size: var(--fs-xs); font-weight:700; color:var(--c-text-muted);" class="mono">KỲ THANH TOÁN:</span>
+              <label style="font-size: var(--fs-xs);">Từ Tháng:</label>
+              <input type="month" class="form-input mono" id="pay-filter-from" value="2027-01" style="width: 140px; padding: 4px 8px; font-size: 12px;">
+              <label style="font-size: var(--fs-xs);">Đến Tháng:</label>
+              <input type="month" class="form-input mono" id="pay-filter-to" value="2027-06" style="width: 140px; padding: 4px 8px; font-size: 12px;">
+            </div>
+
+            <div style="display:flex; align-items:center; gap: var(--sp-2);">
+              <label style="font-size: var(--fs-xs);">Trạng Thái SAP:</label>
+              <select class="form-select" id="pay-filter-status" style="width: 170px; padding: 4px 8px; font-size: 12px;">
+                <option value="ALL">-- Tất Cả Trạng Thái --</option>
+                <option value="PENDING" selected>🟡 Chờ Xuất SAP</option>
+                <option value="EXPORTED">🟢 Đã Xuất SAP</option>
+                <option value="RE_EXPORT">🔴 Cần Xuất Lại</option>
+              </select>
+            </div>
+
+            <input type="text" class="form-input" placeholder="Lọc theo Mã HĐ, chủ nhà..." style="width: 220px; padding: 4px 8px; font-size: 12px;">
+          </div>
+
+          <!-- Alert Note -->
+          <div style="background:var(--c-accent-subtle); border:1px solid var(--c-accent); padding:var(--sp-3) var(--sp-4); border-radius:var(--radius-sm); font-size:var(--fs-xs); margin-bottom:var(--sp-4); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              💡 <strong>Lưu Ý Tách Dòng Tự Động:</strong> Các hợp đồng có kỳ thanh toán nằm vắt qua 2 đợt giá sẽ được hệ thống tự động bóc tách thành các dòng đợt con để hạch toán chính xác với hệ thống SAP.
+            </div>
+          </div>
+
+          <!-- Payment Table -->
+          <div style="overflow-x:auto; border:1px solid var(--c-border); border-radius:var(--radius-md); background:var(--c-surface);">
+            <table class="data-table" id="payment-schedule-table" style="margin:0; width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="background: oklch(0.975 0.003 250); border-bottom: 2px solid var(--c-border);">
+                  <th style="width: 44px; text-align:center; padding:12px 8px;">
+                    <input type="checkbox" id="pay-select-all" checked onclick="toggleSelectAllPayments(this.checked)" style="cursor:pointer; width:16px; height:16px; accent-color:var(--c-accent);">
+                  </th>
+                  <th style="white-space:nowrap; padding:12px 14px;">Mã Hợp Đồng &amp; Mặt Bằng</th>
+                  <th style="white-space:nowrap; padding:12px 14px;">Chủ Cho Thuê</th>
+                  <th style="white-space:nowrap; padding:12px 14px;">Kỳ Thanh Toán (Lọc)</th>
+                  <th style="white-space:nowrap; padding:12px 14px;">Giai Đoạn Giá Áp Dụng (FR-2.2)</th>
+                  <th style="white-space:nowrap; padding:12px 14px; text-align:right;">Đơn Giá / Tháng</th>
+                  <th style="white-space:nowrap; padding:12px 14px; text-align:right;">Tổng Tiền Đợt</th>
+                  <th style="white-space:nowrap; padding:12px 14px; text-align:center;">Trạng Thái SAP</th>
+                  <th style="white-space:nowrap; padding:12px 14px; text-align:center;">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="payment-table-body">
+                <!-- Group 1: HD-2026-0247 (CONTRACT GROUP HEADER + INDEPENDENT SUB-ROWS) -->
+                <!-- 1. Group Header Bar -->
+                <tr style="background: oklch(0.965 0.008 250); border-left: 4px solid var(--c-accent); border-top: 1px solid var(--c-border); border-bottom: 1px solid var(--c-border-subtle);">
+                  <td colspan="9" style="padding:8px 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <strong class="mono" style="font-size:13px; color:var(--c-text);">🏢 HD-2026-0247</strong>
+                        <span style="font-size:12px; font-weight:600; color:var(--c-text);">123 Nguyễn Huệ, P. Bến Nghé, Q.1</span>
+                        <span style="font-size:11px; color:var(--c-text-muted);">&bull; Chủ nhà: Nguyễn Văn A</span>
+                        <span class="badge badge-accent" style="font-size:10px; padding:2px 6px;">📑 HĐ Bóc Tách 2 Đợt Giá</span>
+                      </div>
+                      <button class="btn btn-sm btn-ghost" onclick="openDetailPage('HD-2026-0247')" style="padding:2px 8px; font-size:11px;">👁️ Xem Chi Tiết HĐ</button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- 2. Sub-row 1 (Independent Checkbox) -->
+                <tr style="background: var(--c-surface); border-left: 4px solid var(--c-accent); border-bottom: 1px dashed var(--c-border-subtle);">
+                  <td style="text-align:center; padding:10px 8px; vertical-align:middle;">
+                    <input type="checkbox" class="pay-chk" value="HD-2026-0247-P1" checked onclick="updatePaymentSummary()" style="cursor:pointer; width:16px; height:16px; accent-color:var(--c-accent);">
+                  </td>
+                  <td style="padding:10px 14px; vertical-align:middle;">
+                    <span class="mono" style="font-size:12px; font-weight:700; color:var(--c-text);">Đợt 1/2</span>
+                    <span style="font-size:11px; color:var(--c-text-muted); display:block;">Mặt bằng Q.1</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; vertical-align:middle; font-weight:500;">Nguyễn Văn A</td>
+                  <td style="white-space:nowrap; padding:10px 14px; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; color:var(--c-text);">01/01/2027 &rarr; 28/02/2027</span>
+                    <span style="font-size:11px; color:var(--c-text-muted); margin-left:4px;">(2 Tháng)</span>
+                  </td>
+                  <td style="padding:10px 14px; vertical-align:middle;">
+                    <div class="badge badge-neutral" style="white-space:nowrap; font-size:11px; padding:3px 8px;">
+                      ├─ GĐ 1 (01/03/26 &rarr; 28/02/27)
+                    </div>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; font-size:13px;">40,000,000</span> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <strong style="font-size:14px; color:var(--c-accent);">80,000,000</strong> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:center; vertical-align:middle;">
+                    <span class="badge badge-yellow" style="padding:3px 8px; font-size:11px;">🟡 Chờ Xuất SAP</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:center; vertical-align:middle;">
+                    <button class="btn btn-sm btn-ghost" onclick="openDetailPage('HD-2026-0247')" style="padding:2px 6px; font-size:11px;">👁️ Xem</button>
+                  </td>
+                </tr>
+
+                <!-- 3. Sub-row 2 (Independent Checkbox) -->
+                <tr style="background: oklch(0.985 0.008 55 / 0.25); border-left: 4px solid var(--c-accent); border-bottom: 2px solid var(--c-border);">
+                  <td style="text-align:center; padding:10px 8px; vertical-align:middle;">
+                    <input type="checkbox" class="pay-chk" value="HD-2026-0247-P2" checked onclick="updatePaymentSummary()" style="cursor:pointer; width:16px; height:16px; accent-color:var(--c-accent);">
+                  </td>
+                  <td style="padding:10px 14px; vertical-align:middle;">
+                    <span class="mono" style="font-size:12px; font-weight:700; color:#e65100;">Đợt 2/2</span>
+                    <span style="font-size:11px; color:var(--c-text-muted); display:block;">Mặt bằng Q.1</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; vertical-align:middle; font-weight:500;">Nguyễn Văn A</td>
+                  <td style="white-space:nowrap; padding:10px 14px; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; color:var(--c-text);">01/03/2027 &rarr; 30/06/2027</span>
+                    <span style="font-size:11px; color:var(--c-text-muted); margin-left:4px;">(4 Tháng)</span>
+                  </td>
+                  <td style="padding:10px 14px; vertical-align:middle;">
+                    <div class="badge" style="white-space:nowrap; font-size:11px; padding:3px 8px; background:#fff3e0; color:#e65100; border:1px solid #ffe0b2;">
+                      └─ 🟠 GĐ 2 (Tăng giá từ 01/03/27)
+                    </div>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; font-size:13px; color:#e65100;">45,000,000</span> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <strong style="font-size:14px; color:var(--c-accent);">180,000,000</strong> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:center; vertical-align:middle;">
+                    <span class="badge badge-yellow" style="padding:3px 8px; font-size:11px;">🟡 Chờ Xuất SAP</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:10px 14px; text-align:center; vertical-align:middle;">
+                    <button class="btn btn-sm btn-ghost" onclick="openDetailPage('HD-2026-0247')" style="padding:2px 6px; font-size:11px;">👁️ Xem</button>
+                  </td>
+                </tr>
+
+                <!-- Group 2: HD-2026-0198 -->
+                <tr style="border-bottom: 1px solid var(--c-border-subtle);">
+                  <td style="text-align:center; padding:12px 8px; vertical-align:middle;">
+                    <input type="checkbox" class="pay-chk" value="HD-2026-0198" disabled onclick="updatePaymentSummary()" style="cursor:not-allowed; width:16px; height:16px;">
+                  </td>
+                  <td style="padding:12px 14px; vertical-align:middle;">
+                    <strong class="mono" style="white-space:nowrap; font-size:13px; color:var(--c-text);">HD-2026-0198</strong>
+                    <div style="font-size:11px; color:var(--c-text-muted); white-space:nowrap; margin-top:2px;">45 Lê Lợi, P. Bến Thành, Q.1</div>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; vertical-align:middle; font-weight:500;">Trần Thị B</td>
+                  <td style="white-space:nowrap; padding:12px 14px; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; color:var(--c-text);">01/01/2027 &rarr; 30/06/2027</span>
+                    <span style="font-size:11px; color:var(--c-text-muted); margin-left:4px;">(6 Tháng)</span>
+                  </td>
+                  <td style="padding:12px 14px; vertical-align:middle;">
+                    <span class="badge badge-neutral" style="white-space:nowrap; font-size:11px; padding:4px 8px;">GĐ 1 (15/01/24 &rarr; 14/01/27)</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; font-size:13px;">50,000,000</span> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <strong style="font-size:14px; color:var(--c-accent);">300,000,000</strong> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:center; vertical-align:middle;">
+                    <span class="badge badge-green" style="padding:4px 10px; font-size:11px;">🟢 Đã Xuất SAP (15/01)</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:center; vertical-align:middle;">
+                    <button class="btn btn-sm btn-ghost" onclick="openDetailPage('HD-2026-0198')" style="padding:3px 8px; font-size:11px;">👁️ Xem HĐ</button>
+                  </td>
+                </tr>
+
+                <!-- Group 3: HD-2026-0201 -->
+                <tr style="border-bottom: 1px solid var(--c-border-subtle);">
+                  <td style="text-align:center; padding:12px 8px; vertical-align:middle;">
+                    <input type="checkbox" class="pay-chk" value="HD-2026-0201" checked onclick="updatePaymentSummary()" style="cursor:pointer; width:16px; height:16px; accent-color:var(--c-accent);">
+                  </td>
+                  <td style="padding:12px 14px; vertical-align:middle;">
+                    <strong class="mono" style="white-space:nowrap; font-size:13px; color:var(--c-text);">HD-2026-0201</strong>
+                    <div style="font-size:11px; color:var(--c-text-muted); white-space:nowrap; margin-top:2px;">78 Hai Bà Trưng, P. Bến Nghé, Q.1</div>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; vertical-align:middle; font-weight:500;">Lê Văn C</td>
+                  <td style="white-space:nowrap; padding:12px 14px; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; color:var(--c-text);">01/01/2027 &rarr; 30/06/2027</span>
+                    <span style="font-size:11px; color:var(--c-text-muted); margin-left:4px;">(6 Tháng)</span>
+                  </td>
+                  <td style="padding:12px 14px; vertical-align:middle;">
+                    <span class="badge badge-red" style="white-space:nowrap; font-size:11px; padding:4px 8px;">🔴 GĐ 2 (Đã Tăng Giá)</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <span style="font-weight:600; font-size:13px;">35,000,000</span> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:right; vertical-align:middle;" class="mono">
+                    <strong style="font-size:14px; color:var(--c-accent);">210,000,000</strong> <span style="font-size:11px; color:var(--c-text-muted);">VND</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:center; vertical-align:middle;">
+                    <span class="badge badge-red" style="padding:4px 10px; font-size:11px;">🔴 Cần Xuất Lại (Đã Sửa Giá)</span>
+                  </td>
+                  <td style="white-space:nowrap; padding:12px 14px; text-align:center; vertical-align:middle;">
+                    <button class="btn btn-sm btn-ghost" onclick="openDetailPage('HD-2026-0201')" style="padding:3px 8px; font-size:11px;">👁️ Xem HĐ</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Footer Bar -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:var(--sp-4); padding-top:var(--sp-4); border-top:1px solid var(--c-border); font-size:var(--fs-sm);">
+            <div>
+              Đã chọn: <strong class="mono" style="color:var(--c-accent);" id="pay-selected-count">3 Đợt Hợp Đồng</strong>
+            </div>
+            <div>
+              Tổng số tiền xuất SAP đợt này: <strong class="mono" style="font-size:var(--fs-lg); color:var(--c-accent);" id="pay-selected-total">470,000,000 VND</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 4: DEDICATED FULL DETAIL PAGE ================= -->
+      <div id="view-contract-detail" class="view-pane">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--sp-6);">
+          <div style="display:flex; align-items:center; gap: var(--sp-4);">
+            <button class="btn btn-ghost" onclick="switchView('view-contracts')">&#8592; Quay Lại Danh Sách</button>
+            <div>
+              <div style="display:flex; align-items:center; gap: var(--sp-3);">
+                <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;" id="detail-page-code">HD-2026-0247</h1>
+                <span class="badge badge-green" id="detail-page-alert-badge">🟢 Mức Xanh (>90 ngày)</span>
+                <span class="badge badge-neutral" id="detail-page-status-tag">Đang hiệu lực</span>
+              </div>
+              
+              <!-- Historical Contract Selector for Property -->
+              <div style="display:flex; align-items:center; gap: var(--sp-2); margin-top: 4px;">
+                <span style="font-size: var(--fs-xs); color: var(--c-text-muted);" class="mono">📜 HỢP ĐỒNG LIÊN KẾT MẶT BẰNG:</span>
+                <select class="form-select" id="detail-contract-selector" style="width: 320px; padding: 2px 8px; font-size: var(--fs-xs);" onchange="switchDetailContract(this.value)">
+                  <option value="HD-2026-0247" selected>HD-2026-0247 (2026 - 2029) ⭐ Đang Hiệu Lực</option>
+                  <option value="HD-2023-0089">HD-2023-0089 (2023 - 2026) 📁 Lịch Sử Cũ</option>
+                  <option value="HD-2020-0012">HD-2020-0012 (2020 - 2023) 📁 Lịch Sử Cũ</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap: var(--sp-2);">
+            <button class="btn btn-sm ketoan-only" onclick="addPricePhaseRow()">+ Thêm Giai Đoạn Giá</button>
+            <button class="btn btn-sm legal-only" style="display:none;" onclick="openAlertConfigModal('HD-2026-0247')">⚙ Cấu Hình Cảnh Báo</button>
+          </div>
+        </div>
+
+        <!-- Section 1: Overview Grid -->
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: var(--sp-6); margin-bottom: var(--sp-6);">
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-header-bar">
+              <span class="card-title">Thông Tin Hồ Sơ Pháp Lý &amp; Mặt Bằng</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); font-size: var(--fs-sm);">
+              <div>
+                <div style="color:var(--c-text-muted); font-size:var(--fs-xs); text-transform:uppercase;" class="mono">Địa Chỉ Thuê</div>
+                <strong id="detail-page-address">123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM</strong>
+              </div>
+              <div>
+                <div style="color:var(--c-text-muted); font-size:var(--fs-xs); text-transform:uppercase;" class="mono">Chủ Cho Thuê</div>
+                <strong id="detail-page-owner">Nguyễn Văn A &mdash; 0909 123 456</strong>
+              </div>
+              <div>
+                <div style="color:var(--c-text-muted); font-size:var(--fs-xs); text-transform:uppercase;" class="mono">Thời Hạn Hợp Đồng <span style="color:var(--alert-red);">*</span></div>
+                <strong class="mono" id="detail-page-dates">01/03/2026 &mdash; 28/02/2029 (3 Năm)</strong>
+              </div>
+              <div>
+                <div style="color:var(--c-text-muted); font-size:var(--fs-xs); text-transform:uppercase;" class="mono">Bắt Đầu Tính Tiền <span style="color:var(--alert-red);">*</span></div>
+                <strong class="mono" id="detail-page-rent-start">01/04/2026 (Miễn phí 1 tháng đầu)</strong>
+              </div>
+              <div>
+                <div style="color:var(--c-text-muted); font-size:var(--fs-xs); text-transform:uppercase;" class="mono">Diện Tích Sử Dụng</div>
+                <strong class="mono">120 m&sup2;</strong>
+              </div>
+              <div>
+                <div style="color:var(--c-text-muted); font-size:var(--fs-xs); text-transform:uppercase;" class="mono">Nghĩa Vụ Kê Khai Thuế</div>
+                <strong>Bên thuê chịu trách nhiệm nộp</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-header-bar">
+              <span class="card-title">Cảnh Báo 2 Luồng (Hết Hạn &amp; Tăng Giá)</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap: var(--sp-3); font-size: var(--fs-sm);">
+              <!-- Luồng 1: Hết hạn Hợp đồng -->
+              <div style="border-bottom:1px solid var(--c-border-subtle); padding-bottom:var(--sp-2);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span style="color:var(--c-text-muted); font-size:var(--fs-xs);" class="mono">CẢNH BÁO HẾT HẠN</span>
+                  <span class="badge badge-green" id="detail-page-alert-badge-2">🟢 Mức Xanh</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                  <span>Thời gian còn lại:</span>
+                  <strong class="mono" style="color:var(--alert-green);">920 ngày</strong>
+                </div>
+              </div>
+
+              <!-- Luồng 2: Tăng giá thuê -->
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span style="color:var(--c-text-muted); font-size:var(--fs-xs);" class="mono">CẢNH BÁO TĂNG GIÁ</span>
+                  <span class="badge badge-green" id="detail-price-alert-badge">🟢 Giá Ổn Định</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                  <span>Giai đoạn tăng giá tới:</span>
+                  <strong class="mono">28/02/2027 (Còn 189 ngày)</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Price Phase Table -->
+        <div class="card">
+          <div class="card-header-bar">
+            <span class="card-title">Bảng Giai Đoạn Điều Chỉnh Giá Thuê (FR-2.2 &mdash; Nhập Tay Trực Tiếp)</span>
+            <button class="btn btn-sm btn-primary ketoan-only" onclick="addPricePhaseRow()">+ Thêm Giai Đoạn Giá</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:40px;">STT</th>
+                <th>Từ Ngày</th>
+                <th>Đến Ngày</th>
+                <th style="text-align:right;">Giá Thuê / Tháng (VND)</th>
+                <th class="ketoan-only" style="width:80px;">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="detail-page-phases-tbody">
+              <tr>
+                <td style="color:var(--c-text-muted);">1</td>
+                <td><input type="text" class="form-input mono" value="01/03/2026"></td>
+                <td><input type="text" class="form-input mono" value="28/02/2027"></td>
+                <td><input type="text" class="form-input mono" value="45,000,000" style="text-align:right;"></td>
+                <td class="ketoan-only"><button class="btn btn-sm btn-ghost" onclick="this.closest('tr').remove(); triggerToast('Đã xóa giai đoạn giá');" style="color:var(--c-danger);">&#128465;</button></td>
+              </tr>
+              <tr>
+                <td style="color:var(--c-text-muted);">2</td>
+                <td><input type="text" class="form-input mono" value="01/03/2027"></td>
+                <td><input type="text" class="form-input mono" value="28/02/2028"></td>
+                <td><input type="text" class="form-input mono" value="48,000,000" style="text-align:right;"></td>
+                <td class="ketoan-only"><button class="btn btn-sm btn-ghost" onclick="this.closest('tr').remove(); triggerToast('Đã xóa giai đoạn giá');" style="color:var(--c-danger);">&#128465;</button></td>
+              </tr>
+              <tr>
+                <td style="color:var(--c-text-muted);">3</td>
+                <td><input type="text" class="form-input mono" value="01/03/2028"></td>
+                <td><input type="text" class="form-input mono" value="28/02/2029"></td>
+                <td><input type="text" class="form-input mono" value="52,000,000" style="text-align:right;"></td>
+                <td class="ketoan-only"><button class="btn btn-sm btn-ghost" onclick="this.closest('tr').remove(); triggerToast('Đã xóa giai đoạn giá');" style="color:var(--c-danger);">&#128465;</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section 3: Timeline & Diff Panel -->
+        <div class="card">
+          <div class="card-header-bar">
+            <span class="card-title">Lịch Sử Thay Đổi &amp; Nhật Ký Chỉnh Sửa (FR-7 &amp; BR-3)</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6);">
+            <!-- Timeline stream -->
+            <div class="timeline-stream">
+              <div class="timeline-event active" onclick="showDiffDetails(1)">
+                <div class="timeline-event-dot"></div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-muted);" class="mono">19/08/2026 09:15 &bull; Nguyễn Văn Kế Toán</div>
+                <div style="font-weight:600; font-size:var(--fs-sm);">Cập nhật Bảng Giai Đoạn Giá #2</div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-secondary);">Thay đổi giá thuê từ 46,000,000 VND sang 48,000,000 VND</div>
+              </div>
+
+              <div class="timeline-event" onclick="showDiffDetails(2)">
+                <div class="timeline-event-dot"></div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-muted);" class="mono">15/08/2026 14:30 &bull; Trần Thị Site</div>
+                <div style="font-weight:600; font-size:var(--fs-sm);">Cập nhật SĐT Liên Hệ Chủ Nhà</div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-secondary);">0909 111 222 &rarr; 0909 123 456</div>
+              </div>
+
+              <div class="timeline-event" onclick="showDiffDetails(3)">
+                <div class="timeline-event-dot"></div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-muted);" class="mono">01/03/2026 10:00 &bull; Nguyễn Văn Site</div>
+                <div style="font-weight:600; font-size:var(--fs-sm);">Khởi Tạo Hồ Sơ Mặt Bằng PDF</div>
+                <div style="font-size:var(--fs-xs); color:var(--c-text-secondary);">Upload file HD-2026-0247-signed.pdf</div>
+              </div>
+            </div>
+
+            <!-- Diff Detail Display Area -->
+            <div>
+              <div style="display:flex; justify-content:space-between; align-align:center; margin-bottom:var(--sp-3);">
+                <div style="font-size:var(--fs-sm); font-weight:600;">Chi Tiết Thay Đổi Trường Dữ Liệu (Diff Viewer)</div>
+                <button class="btn btn-sm btn-ghost" onclick="openVersionHistoryModal('HD-2026-0247')" style="font-size:11px;">🔍 Mở Modal Phóng Thổ</button>
+              </div>
+              <div id="diff-detail-display">
+                <div class="diff-history-card" style="background:var(--c-surface); border:1px solid var(--c-border); border-radius:var(--radius-md); overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <!-- Card Sub Header -->
+                  <div style="background:var(--c-bg); border-bottom:1px solid var(--c-border); padding:var(--sp-2.5) var(--sp-4); display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-family:var(--font-display); font-weight:700; font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:0.04em; color:var(--c-text);" class="mono">
+                      HỒ SƠ MẶT BẰNG: HD-2026-0247
+                    </div>
+                    <div style="font-size:var(--fs-xs); color:var(--c-text-muted);">
+                      Sửa đổi bởi: <strong style="color:var(--c-text);">Nguyễn Văn Kế Toán</strong> <span style="opacity:0.8;">(19/08/2026 09:15)</span>
+                    </div>
+                  </div>
+
+                  <!-- Table Body -->
+                  <table style="width:100%; border-collapse:collapse; text-align:left; table-layout:fixed;">
+                    <thead>
+                      <tr style="border-bottom:1px solid var(--c-border-subtle); background:var(--c-surface-raised);">
+                        <th style="padding:var(--sp-2) var(--sp-3); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--c-text-muted); width:28%;">TRƯỜNG THAY ĐỔI</th>
+                        <th style="padding:var(--sp-2) var(--sp-3); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--c-text-muted); width:33%;">GIÁ TRỊ CŨ</th>
+                        <th style="padding:var(--sp-2) var(--sp-1); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--c-text-muted); text-align:center; width:6%;">➔</th>
+                        <th style="padding:var(--sp-2) var(--sp-3); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--c-text-muted); width:33%;">GIÁ TRỊ MỚI</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="border-bottom:1px solid var(--c-border-subtle);">
+                        <td style="padding:var(--sp-2.5) var(--sp-3); font-weight:600; color:var(--c-text); vertical-align:top; font-size:var(--fs-xs);">Diện tích</td>
+                        <td style="padding:var(--sp-2.5) var(--sp-3); vertical-align:top;">
+                          <span style="display:inline-block; background:#FEE2E2; color:#DC2626; text-decoration:line-through; padding:3px 8px; border-radius:4px; font-weight:600; font-family:var(--font-mono); font-size:var(--fs-xs); word-break:break-word; max-width:100%; white-space:normal;">100 m²</span>
+                        </td>
+                        <td style="padding:var(--sp-2.5) var(--sp-1); text-align:center; color:var(--c-text-muted); font-weight:bold; vertical-align:top; font-size:var(--fs-xs);">➔</td>
+                        <td style="padding:var(--sp-2.5) var(--sp-3); vertical-align:top;">
+                          <span style="display:inline-block; background:#DCFCE7; color:#16A34A; padding:3px 8px; border-radius:4px; font-weight:600; font-family:var(--font-mono); font-size:var(--fs-xs); word-break:break-word; max-width:100%; white-space:normal;">120 m²</span>
+                        </td>
+                      </tr>
+                      <tr style="border-bottom:1px solid var(--c-border-subtle);">
+                        <td style="padding:var(--sp-2.5) var(--sp-3); font-weight:600; color:var(--c-text); vertical-align:top; font-size:var(--fs-xs);">Quận/Huyện</td>
+                        <td style="padding:var(--sp-2.5) var(--sp-3); vertical-align:top;">
+                          <span style="display:inline-block; background:#FEE2E2; color:#DC2626; text-decoration:line-through; padding:3px 8px; border-radius:4px; font-weight:600; font-size:var(--fs-xs); word-break:break-word; max-width:100%; white-space:normal;">Q5</span>
+                        </td>
+                        <td style="padding:var(--sp-2.5) var(--sp-1); text-align:center; color:var(--c-text-muted); font-weight:bold; vertical-align:top; font-size:var(--fs-xs);">➔</td>
+                        <td style="padding:var(--sp-2.5) var(--sp-3); vertical-align:top;">
+                          <span style="display:inline-block; background:#DCFCE7; color:#16A34A; padding:3px 8px; border-radius:4px; font-weight:600; font-size:var(--fs-xs); word-break:break-word; max-width:100%; white-space:normal;">Quận 5</span>
+                        </td>
+                      </tr>
+                      <tr style="border-bottom:1px solid var(--c-border-subtle);">
+                        <td style="padding:var(--sp-2.5) var(--sp-3); font-weight:600; color:var(--c-text); vertical-align:top; font-size:var(--fs-xs);">Giá thuê giai đoạn 2</td>
+                        <td style="padding:var(--sp-2.5) var(--sp-3); vertical-align:top;">
+                          <span style="display:inline-block; background:#FEE2E2; color:#DC2626; text-decoration:line-through; padding:3px 8px; border-radius:4px; font-weight:600; font-family:var(--font-mono); font-size:var(--fs-xs); word-break:break-word; max-width:100%; white-space:normal;">46,000,000 VND</span>
+                        </td>
+                        <td style="padding:var(--sp-2.5) var(--sp-1); text-align:center; color:var(--c-text-muted); font-weight:bold; vertical-align:top; font-size:var(--fs-xs);">➔</td>
+                        <td style="padding:var(--sp-2.5) var(--sp-3); vertical-align:top;">
+                          <span style="display:inline-block; background:#DCFCE7; color:#16A34A; padding:3px 8px; border-radius:4px; font-weight:600; font-family:var(--font-mono); font-size:var(--fs-xs); word-break:break-word; max-width:100%; white-space:normal;">48,000,000 VND</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <!-- Note Footer -->
+                  <div style="padding:var(--sp-3) var(--sp-4); background:var(--c-surface-raised); border-top:1px solid var(--c-border-subtle); font-size:var(--fs-xs); color:var(--c-text-secondary); font-style:italic; line-height:1.4;">
+                    <strong>Ghi chú đính kèm:</strong> "Kế toán đính chính diện tích và quận huyện khớp chính xác với bản PDF hợp đồng giấy đã ký ngoại tuyến (do Site nhập nháp ban đầu bị viết tắt)."
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= VIEW 5: PROPERTY CREATION WIZARD (SITE, ADMIN ONLY) ================= -->
+      <div id="view-property-wizard" class="view-pane">
+        <div style="max-width: 840px; margin: 0 auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--sp-6);">
+            <div>
+              <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;">Khởi Tạo Hồ Sơ Mặt Bằng Mới (FR-1)</h1>
+              <p style="color: var(--c-text-secondary); font-size: var(--fs-sm);">Quy trình 3 bước dành cho vai trò Site: Upload PDF Hợp đồng &rarr; Kiểm tra OCR &rarr; Xác nhận khởi tạo</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="switchView('view-properties')">&#8592; Hủy &amp; Quay Lại</button>
+          </div>
+
+          <!-- Wizard Progress Stepper -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--sp-8); background:var(--c-surface); border:1px solid var(--c-border); padding:var(--sp-4) var(--sp-6); border-radius:var(--radius-md);">
+            <div class="wizard-step-item active" id="wiz-step-1-indicator" style="display:flex; align-items:center; gap:8px;">
+              <div class="step-num-badge" id="wiz-step-1-badge" style="width:28px; height:28px; border-radius:50%; background:var(--c-accent); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px;">1</div>
+              <span style="font-family:var(--font-display); font-weight:700; font-size:13px; text-transform:uppercase;">1. Upload File PDF</span>
+            </div>
+            <div style="flex:1; height:2px; background:var(--c-border); margin:0 16px;" id="wiz-line-1"></div>
+            <div class="wizard-step-item" id="wiz-step-2-indicator" style="display:flex; align-items:center; gap:8px; opacity:0.5;">
+              <div class="step-num-badge" id="wiz-step-2-badge" style="width:28px; height:28px; border-radius:50%; background:var(--c-border); color:var(--c-text-muted); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px;">2</div>
+              <span style="font-family:var(--font-display); font-weight:700; font-size:13px; text-transform:uppercase;">2. Rà Soát Thông Tin (14 Fields)</span>
+            </div>
+            <div style="flex:1; height:2px; background:var(--c-border); margin:0 16px;" id="wiz-line-2"></div>
+            <div class="wizard-step-item" id="wiz-step-3-indicator" style="display:flex; align-items:center; gap:8px; opacity:0.5;">
+              <div class="step-num-badge" id="wiz-step-3-badge" style="width:28px; height:28px; border-radius:50%; background:var(--c-border); color:var(--c-text-muted); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px;">3</div>
+              <span style="font-family:var(--font-display); font-weight:700; font-size:13px; text-transform:uppercase;">3. Xác Nhận &amp; Khóa Sửa BR-1</span>
+            </div>
+          </div>
+
+          <!-- STEP 1 CONTAINER: PDF UPLOAD WITH SCANNING ANIMATION -->
+          <div id="wiz-step-1-content">
+            <div class="card">
+              <div class="card-header-bar">
+                <span class="card-title">Bước 1: Tải Lên PDF Hợp Đồng Gốc Đã Ký (Bắt buộc)</span>
+              </div>
+              <div id="dropzone-box" style="border: 2px dashed var(--c-border); padding: var(--sp-12); text-align: center; border-radius: var(--radius-md); background: var(--c-bg); cursor: pointer; transition:all 0.2s;" onclick="simulateOCR()" onmouseover="this.style.borderColor='var(--c-accent)'" onmouseout="this.style.borderColor='var(--c-border)'">
+                <div style="font-size: 40px; margin-bottom: var(--sp-2);">📄</div>
+                <div style="font-weight: 700; font-size: var(--fs-md); color:var(--c-text);">Kéo thả file PDF hợp đồng vào đây hoặc bấm để chọn file</div>
+                <div style="font-size: var(--fs-xs); color: var(--c-text-muted); margin-top: var(--sp-2);">Hỗ trợ định dạng PDF đã ký đóng dấu (Tối đa 25 MB). Hệ thống sẽ tự động chạy AI OCR bóc tách dữ liệu.</div>
+              </div>
+
+              <!-- Animated Scan Progress Bar from Design Cũ -->
+              <div id="ocr-progress-container" style="display:none; margin-top:var(--sp-6);">
+                <div style="display:flex; justify-content:space-between; font-size:var(--fs-xs); margin-bottom:4px;" class="mono">
+                  <strong style="color:var(--c-accent);">AI OCR Progress:</strong>
+                  <span id="ocr-percentage">0%</span>
+                </div>
+                <div style="width:100%; height:8px; background:var(--c-border); border-radius:4px; overflow:hidden;">
+                  <div id="ocr-progress-bar" style="width:0%; height:100%; background:var(--c-accent); transition:width 0.2s linear;"></div>
+                </div>
+              </div>
+
+              <div style="margin-top:var(--sp-4); text-align:center;">
+                <button class="btn btn-primary" onclick="simulateOCR()">🔍 Mô Phỏng Tải File PDF &amp; Quét AI OCR</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 CONTAINER: REVIEW ALL 14 FIELDS -->
+          <div id="wiz-step-2-content" style="display:none;">
+            <div class="card">
+              <div class="card-header-bar">
+                <span class="card-title">Bước 2: Rà Soát Chi Tiết Trường Dữ Liệu (SRS Section 4.1 &amp; 4.2)</span>
+                <span class="badge badge-green">✓ AI OCR Confidence 98.5%</span>
+              </div>
+              <div style="background: var(--alert-green-bg); color: var(--alert-green); padding: var(--sp-3); border-radius: var(--radius-sm); font-size: var(--fs-xs); margin-bottom: var(--sp-6);">
+                ✓ Đã trích xuất thông tin tự động từ <strong>HD-2026-0248-signed.pdf</strong>. Bạn có thể kiểm tra và chỉnh sửa trực tiếp từng ô bên dưới trước khi chuyển bước tiếp theo:
+              </div>
+
+              <!-- Group 1: Thông tin pháp lý & Mặt bằng -->
+              <div style="font-family:var(--font-display); font-size:var(--fs-sm); font-weight:700; text-transform:uppercase; color:var(--c-accent); margin-bottom:var(--sp-3); border-bottom:1px solid var(--c-border); padding-bottom:4px;">I. Thông Tin Hồ Sơ Mặt Bằng (Property Metadata)</div>
+              
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+                <div class="form-group">
+                  <label class="form-label">Mã Hợp Đồng Gốc (Required)</label>
+                  <input type="text" class="form-input mono" id="input-ma-hd" value="HD-2026-0248">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tên Bên Thuê (Tenant Entity)</label>
+                  <input type="text" class="form-input" id="input-ben-thue" value="Công Ty Cổ Phần Vinh Hoa">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Địa Chỉ Chi Tiết (Số nhà, Tên đường)</label>
+                <input type="text" class="form-input" id="input-dia-chi" value="456 Trần Hưng Đạo, Phường Cầu Kho">
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4);">
+                <div class="form-group">
+                  <label class="form-label">Quận / Huyện</label>
+                  <select class="form-select" id="input-quan">
+                    <option selected>Quận 1</option>
+                    <option>Quận 3</option>
+                    <option>Quận 5</option>
+                    <option>Quận 10</option>
+                    <option>Bình Thạnh</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Thành Phố / Tỉnh</label>
+                  <select class="form-select" id="input-tinh">
+                    <option selected>TP. Hồ Chí Minh</option>
+                    <option>Hà Nội</option>
+                    <option>Đà Nẵng</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Diện Tích Thuê (m²)</label>
+                  <input type="text" class="form-input mono" id="input-dien-tich" value="150 m²">
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+                <div class="form-group">
+                  <label class="form-label">Họ Tên Chủ Cho Thuê</label>
+                  <input type="text" class="form-input" id="input-chu-nha" value="Ông Nguyễn Văn Phát">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Thông Tin Liên Hệ (SĐT / Email)</label>
+                  <input type="text" class="form-input mono" id="input-lien-he" value="0908 765 432 - phat.nguyen@gmail.com">
+                </div>
+              </div>
+
+              <!-- Group 2: Thông tin điều khoản hợp đồng -->
+              <div style="font-family:var(--font-display); font-size:var(--fs-sm); font-weight:700; text-transform:uppercase; color:var(--c-accent); margin-top:var(--sp-4); margin-bottom:var(--sp-3); border-bottom:1px solid var(--c-border); padding-bottom:4px;">II. Điều Khoản &amp; Giá Thuê Khởi Tạo (Lease Terms &amp; Rent)</div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4);">
+                <div class="form-group">
+                  <label class="form-label">Ngày Bắt Đầu Hợp Đồng <span style="color:var(--alert-red); font-weight:bold;">*</span></label>
+                  <input type="text" class="form-input mono" id="input-ngay-bd" value="01/04/2026">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Ngày Kết Thúc Hợp Đồng <span style="color:var(--alert-red); font-weight:bold;">*</span></label>
+                  <input type="text" class="form-input mono" id="input-ngay-kt" value="31/03/2029">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Ngày Bắt Đầu Tính Tiền <span style="color:var(--alert-red); font-weight:bold;">*</span></label>
+                  <input type="text" class="form-input mono" id="input-ngay-tinh-tien" value="01/05/2026">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Nghĩa Vụ Kê Khai / Nộp Thuế</label>
+                <select class="form-select" id="input-thue">
+                  <option selected>Bên thuê chịu trách nhiệm kê khai &amp; nộp</option>
+                  <option>Chủ nhà tự kê khai &amp; nộp</option>
+                </select>
+              </div>
+
+              <!-- Group 3: Interactive Price Phase Schedule (FR-2.2 - Multi-Phase Table) -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:var(--sp-4); margin-bottom:var(--sp-3); border-bottom:1px solid var(--c-border); padding-bottom:4px;">
+                <div style="font-family:var(--font-display); font-size:var(--fs-sm); font-weight:700; text-transform:uppercase; color:var(--c-accent);">
+                  III. Bảng Giai Đoạn Điều Chỉnh Giá Thuê Hợp Đồng (OCR &amp; Hiệu Chỉnh Nhập Tay FR-2.2) <span style="color:var(--alert-red);">*</span>
+                </div>
+                <button class="btn btn-sm" onclick="addWizardPriceRow()">+ Thêm Giai Đoạn Giá</button>
+              </div>
+
+              <div style="background:var(--c-bg); border:1px solid var(--c-border); border-radius:var(--radius-md); overflow:hidden; margin-bottom:var(--sp-2);">
+                <table class="data-table" id="wizard-price-table" style="margin:0;">
+                  <thead>
+                    <tr>
+                      <th style="width:50px;">STT</th>
+                      <th>TỪ NGÀY <span style="color:var(--alert-red);">*</span></th>
+                      <th>ĐẾN NGÀY <span style="color:var(--alert-red);">*</span></th>
+                      <th>GIÁ THUÊ / THÁNG (VND) <span style="color:var(--alert-red);">*</span></th>
+                      <th style="width:80px; text-align:center;">THAO TÁC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td><input type="text" class="form-input mono" value="01/04/2026" style="padding:4px 8px; font-size:12px;"></td>
+                      <td><input type="text" class="form-input mono" value="31/03/2027" style="padding:4px 8px; font-size:12px;"></td>
+                      <td><input type="text" class="form-input mono" value="48,000,000" style="padding:4px 8px; font-size:12px; color:var(--c-accent); font-weight:600;"></td>
+                      <td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="color:var(--alert-red); padding:2px 6px;" onclick="this.closest('tr').remove()">🗑️ Xóa</button></td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td><input type="text" class="form-input mono" value="01/04/2027" style="padding:4px 8px; font-size:12px;"></td>
+                      <td><input type="text" class="form-input mono" value="31/03/2028" style="padding:4px 8px; font-size:12px;"></td>
+                      <td><input type="text" class="form-input mono" value="52,000,000" style="padding:4px 8px; font-size:12px; color:var(--c-accent); font-weight:600;"></td>
+                      <td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="color:var(--alert-red); padding:2px 6px;" onclick="this.closest('tr').remove()">🗑️ Xóa</button></td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td><input type="text" class="form-input mono" value="01/04/2028" style="padding:4px 8px; font-size:12px;"></td>
+                      <td><input type="text" class="form-input mono" value="31/03/2029" style="padding:4px 8px; font-size:12px;"></td>
+                      <td><input type="text" class="form-input mono" value="56,000,000" style="padding:4px 8px; font-size:12px; color:var(--c-accent); font-weight:600;"></td>
+                      <td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="color:var(--alert-red); padding:2px 6px;" onclick="this.closest('tr').remove()">🗑️ Xóa</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="font-size:11px; color:var(--alert-red); font-weight:600; margin-bottom:var(--sp-4);">
+                * Ghi chú: Các mốc thời gian và giá thuê giai đoạn đòi hỏi kiểm tra kỹ với bản cứng PDF hợp đồng đã ký.
+              </div>
+
+              <div style="display:flex; justify-content:space-between; margin-top:var(--sp-6);">
+                <button class="btn" onclick="goToWizardStep(1)">&#8592; Quay Lại Step 1</button>
+                <button class="btn btn-primary" onclick="goToWizardStep(3)">Tiếp Tức Step 3: Xem Lại &amp; Phân Quyền &#8594;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3 CONTAINER: SUMMARY & CONFIRMATION WITH BR-1 LOCK -->
+          <div id="wiz-step-3-content" style="display:none;">
+            <div class="card">
+              <div class="card-header-bar">
+                <span class="card-title">Bước 3: Tóm Tắt Khởi Tạo &amp; Xác Nhận Khóa Sửa BR-1</span>
+              </div>
+
+              <!-- Warning Banner BR-1 -->
+              <div style="background:var(--c-accent-subtle); border:1px solid var(--c-accent); padding:var(--sp-4); border-radius:var(--radius-md); margin-bottom:var(--sp-6);">
+                <div style="font-family:var(--font-display); font-weight:700; color:var(--c-accent); font-size:var(--fs-md); text-transform:uppercase; margin-bottom:4px;">⚠️ Lưu Ý Quy Định Nghiệp Vụ BR-1:</div>
+                <div style="font-size:var(--fs-sm); color:var(--c-text);">
+                  Sau khi tài khoản <strong>Site</strong> bấm xác nhận bên dưới, hệ thống sẽ tự động lưu trữ hồ sơ và <strong>KHÓA QUYỀN CHỈNH SỬA</strong> đối với vai trò Site. Việc điều chỉnh dữ liệu hoặc thêm giá giai đoạn sau mốc này thuộc thẩm quyền duy nhất của bộ phận <strong>Kế toán</strong>.
+                </div>
+              </div>
+
+              <!-- Summary Card Grid -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); font-size:var(--fs-sm); background:var(--c-bg); border:1px solid var(--c-border); padding:var(--sp-4); border-radius:var(--radius-md); margin-bottom:var(--sp-6);">
+                <div><span style="color:var(--c-text-muted);">Mã Hợp Đồng:</span> <strong class="mono" id="sum-ma-hd">HD-2026-0248</strong></div>
+                <div><span style="color:var(--c-text-muted);">Bên Thuê:</span> <strong id="sum-ben-thue">Công Ty Cổ Phần Vinh Hoa</strong></div>
+                <div><span style="color:var(--c-text-muted);">Địa Chỉ:</span> <strong id="sum-dia-chi">456 Trần Hưng Đạo, Q.1, TP.HCM</strong></div>
+                <div><span style="color:var(--c-text-muted);">Diện Tích:</span> <strong class="mono" id="sum-dien-tich">150 m²</strong></div>
+                <div><span style="color:var(--c-text-muted);">Chủ Nhà:</span> <strong id="sum-chu-nha">Nguyễn Văn Phát</strong></div>
+                <div><span style="color:var(--c-text-muted);">Liên Hệ:</span> <strong class="mono" id="sum-lien-he">0908 765 432</strong></div>
+                <div><span style="color:var(--c-text-muted);">Thời Hạn (*):</span> <strong class="mono" id="sum-thoi-han">01/04/2026 — 31/03/2029</strong></div>
+                <div><span style="color:var(--c-text-muted);">Tính Tiền Từ (*):</span> <strong class="mono" id="sum-tinh-tien">01/05/2026</strong></div>
+                <div><span style="color:var(--c-text-muted);">Số Giai Đoạn Giá (*):</span> <strong class="mono" style="color:var(--c-accent);">3 Giai Đoạn (48M / 52M / 56M)</strong></div>
+                <div><span style="color:var(--c-text-muted);">Nghĩa Vụ Thuế:</span> <strong id="sum-thue">Bên thuê nộp</strong></div>
+              </div>
+
+              <!-- Summary Price Phase Schedule Table -->
+              <div style="margin-bottom:var(--sp-6);">
+                <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--c-accent); margin-bottom:var(--sp-2);">Bảng Chi Tiết 3 Giai Đoạn Giá Thuê Đã Khởi Tạo (*):</div>
+                <table class="data-table" style="margin:0;">
+                  <thead>
+                    <tr>
+                      <th>Giai Đoạn</th>
+                      <th>Từ Ngày (*)</th>
+                      <th>Đến Ngày (*)</th>
+                      <th>Giá Thuê / Tháng (VND) (*)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>GĐ 1</td><td class="mono">01/04/2026</td><td class="mono">31/03/2027</td><td class="mono" style="color:var(--c-accent); font-weight:600;">48,000,000 VND</td></tr>
+                    <tr><td>GĐ 2</td><td class="mono">01/04/2027</td><td class="mono">31/03/2028</td><td class="mono" style="color:var(--c-accent); font-weight:600;">52,000,000 VND</td></tr>
+                    <tr><td>GĐ 3</td><td class="mono">01/04/2028</td><td class="mono">31/03/2029</td><td class="mono" style="color:var(--c-accent); font-weight:600;">56,000,000 VND</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display:flex; justify-content:space-between;">
+                <button class="btn" onclick="goToWizardStep(2)">&#8592; Quay Lại Chỉnh Sửa</button>
+                <button class="btn btn-primary" style="min-height:40px; padding:0 24px;" onclick="submitProperty()">✓ Xác Nhận Khởi Tạo &amp; Khóa Sửa Hồ Sơ (BR-1)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 6: USERS (ADMIN ONLY) ================= -->
+      <div id="view-users" class="view-pane">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--sp-6);">
+          <div>
+            <h1 style="font-size: var(--fs-2xl); text-transform: uppercase;">Quản Lý Người Dùng &amp; Phân Quyền (FR-6)</h1>
+            <p style="color: var(--c-text-secondary); font-size: var(--fs-sm);">Giao diện dành riêng cho Admin quản trị tài khoản, cấp quyền &amp; vai trò</p>
+          </div>
+          <button class="btn btn-primary" onclick="triggerToast('Mở form thêm người dùng mới')">+ Thêm Người Dùng</button>
+        </div>
+
+        <div class="card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Họ Và Tên</th>
+                <th>Email Đăng Nhập</th>
+                <th>Vai Trò Hiện Tại</th>
+                <th>Trạng Thái</th>
+                <th>Thao Tác Administrative</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Nguyễn Văn Site</td>
+                <td class="mono">site@vinhhoa.vn</td>
+                <td><span class="badge badge-neutral">Site</span></td>
+                <td><span class="badge badge-green">Hoạt động</span></td>
+                <td><button class="btn btn-sm btn-ghost" onclick="triggerToast('Chỉnh sửa quyền user Site')">Sửa Quyền</button></td>
+              </tr>
+              <tr>
+                <td>Trần Thị Kế Toán</td>
+                <td class="mono">ketoan@vinhhoa.vn</td>
+                <td><span class="badge badge-accent">Kế toán</span></td>
+                <td><span class="badge badge-green">Hoạt động</span></td>
+                <td><button class="btn btn-sm btn-ghost" onclick="triggerToast('Chỉnh sửa quyền user Kế toán')">Sửa Quyền</button></td>
+              </tr>
+              <tr>
+                <td>Lê Văn Legal</td>
+                <td class="mono">legal@vinhhoa.vn</td>
+                <td><span class="badge badge-yellow">Legal</span></td>
+                <td><span class="badge badge-green">Hoạt động</span></td>
+                <td><button class="btn btn-sm btn-ghost" onclick="triggerToast('Chỉnh sửa quyền user Legal')">Sửa Quyền</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= VIEW 7: LOGIN ================= -->
+      <div id="view-login" class="view-pane">
+        <div style="max-width:400px; margin: 40px auto; background:var(--c-surface); border:1px solid var(--c-border); padding:var(--sp-8); border-radius:var(--radius-lg);">
+          <h2 style="font-size: var(--fs-xl); text-transform: uppercase; margin-bottom: var(--sp-1);">Đăng Nhập Hệ Thống</h2>
+          <p style="color: var(--c-text-muted); font-size: var(--fs-xs); margin-bottom: var(--sp-6);">Vinh Hoa Lease &mdash; Xử lý phân quyền nội bộ theo tài khoản</p>
+
+          <div class="form-group">
+            <label class="form-label">Email Công Ty</label>
+            <input type="email" class="form-input" value="site@vinhhoa.vn">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mật Khẩu</label>
+            <input type="password" class="form-input" value="••••••••">
+          </div>
+
+          <button class="btn btn-primary" style="width:100%; justify-content:center; min-height: 40px;" onclick="switchView('view-dashboard')">Đăng Nhập Vào Hệ Thống</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- MODAL 1: QUICK VIEW MODAL -->
+<div class="modal-backdrop" id="quick-view-modal">
+  <div class="modal-card">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;">Xem Nhanh Thông Tin Hợp Đồng</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('quick-view-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <strong style="font-size:18px;" id="qv-code">HD-2026-0247</strong>
+        <span class="badge badge-green" id="qv-badge">🟢 Mức Xanh</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+        <div><span style="color:var(--c-text-muted);">Mặt bằng:</span> <strong id="qv-address">123 Nguyễn Huệ, Q.1, TP.HCM</strong></div>
+        <div><span style="color:var(--c-text-muted);">Chủ nhà:</span> <strong id="qv-owner">Nguyễn Văn A — 0909 123 456</strong></div>
+        <div><span style="color:var(--c-text-muted);">Thời hạn:</span> <strong class="mono" id="qv-dates">01/03/2026 — 28/02/2029</strong></div>
+        <div><span style="color:var(--c-text-muted);">File PDF:</span> <a href="#" style="color:var(--c-accent);">📄 HD-2026-0247-signed.pdf</a></div>
+      </div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm" onclick="closeModal('quick-view-modal')">Đóng</button>
+      <button class="btn btn-sm btn-primary" onclick="closeModal('quick-view-modal'); openDetailPage(document.getElementById('qv-code').innerText);">Mở Trang Chi Tiết Đầy Đủ &#8594;</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 2: 2FA OTP MODAL -->
+<div class="modal-backdrop" id="otp-modal">
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;">Xác Thực OTP 2FA</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('otp-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body" style="text-align:center;">
+      <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
+        Vui lòng nhập mã xác thực OTP gửi về ứng dụng Authenticator của bộ phận Legal để thực hiện cấu hình cảnh báo:
+      </p>
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:16px;">
+        <input type="text" class="form-input mono" style="width:40px; text-align:center; font-size:18px; font-weight:700;" value="8">
+        <input type="text" class="form-input mono" style="width:40px; text-align:center; font-size:18px; font-weight:700;" value="4">
+        <input type="text" class="form-input mono" style="width:40px; text-align:center; font-size:18px; font-weight:700;" value="2">
+        <input type="text" class="form-input mono" style="width:40px; text-align:center; font-size:18px; font-weight:700;" value="9">
+      </div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm" onclick="closeModal('otp-modal')">Hủy</button>
+      <button class="btn btn-sm btn-primary" onclick="closeModal('otp-modal'); openAlertConfigModal('HD-2026-0247');">Xác Nhận &amp; Mở Form Cấu Hình</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 3: PDF PREVIEW MODAL -->
+<div class="modal-backdrop" id="pdf-modal">
+  <div class="modal-card" style="max-width:720px;">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;" id="pdf-modal-title">Xem File PDF Signed</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('pdf-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body" style="background:#333; color:white; min-height:300px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px;">
+      <div style="font-size:48px;">📄</div>
+      <div style="font-family:var(--font-mono); font-size:14px;" id="pdf-modal-filename">HD-2026-0247-signed.pdf</div>
+      <div style="font-size:12px; color:#aaa;">[Mô phỏng trình xem PDF trực tuyến 3 trang &bull; Đã ký đóng dấu đỏ]</div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm" onclick="closeModal('pdf-modal')">Đóng</button>
+      <button class="btn btn-sm btn-primary" onclick="triggerToast('Đã tải file PDF signed về máy'); closeModal('pdf-modal');">Tải File PDF Gốc</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT CONFIG MODAL -->
+<div class="modal-backdrop" id="alert-config-modal">
+  <div class="modal-card" style="max-width:540px;">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;">Cấu Hình Ngưỡng Cảnh Báo (Legal &amp; Kế Toán)</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('alert-config-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body">
+      <!-- Section A: Legal Expiry Alerts -->
+      <div style="font-family:var(--font-display); font-size:var(--fs-sm); font-weight:700; text-transform:uppercase; color:var(--c-accent); margin-bottom:var(--sp-2); border-bottom:1px solid var(--c-border); padding-bottom:4px;">
+        I. Cảnh Báo Hết Hạn Hợp Đồng (Quyền Legal &mdash; FR-4)
+      </div>
+      <p style="font-size:var(--fs-xs); color:var(--c-text-muted); margin-bottom:var(--sp-3);">
+        Nhập số ngày còn lại tới mốc hết hạn cho hợp đồng <strong id="modal-contract-code">HD-2026-0247</strong>:
+      </p>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:var(--sp-3); margin-bottom:var(--sp-4);">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="color:var(--alert-green);">🟢 Mức Xanh</label>
+          <input type="number" class="form-input mono" value="90" placeholder="> 90 ngày">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="color:oklch(0.55 0.14 85);">🟡 Mức Vàng</label>
+          <input type="number" class="form-input mono" value="30" placeholder="30-90 ngày">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="color:var(--alert-red);">🔴 Mức Đỏ</label>
+          <input type="number" class="form-input mono" value="7" placeholder="< 7 ngày">
+        </div>
+      </div>
+
+      <!-- Section B: Kế toán Price Increase Escalation Alerts -->
+      <div style="font-family:var(--font-display); font-size:var(--fs-sm); font-weight:700; text-transform:uppercase; color:var(--c-accent); margin-top:var(--sp-4); margin-bottom:var(--sp-2); border-bottom:1px solid var(--c-border); padding-bottom:4px;">
+        II. Cảnh Báo Đợt Tăng Giá Thuê (Quyền Kế Toán &mdash; FR-2.2)
+      </div>
+      <p style="font-size:var(--fs-xs); color:var(--c-text-muted); margin-bottom:var(--sp-3);">
+        Cài đặt số ngày hệ thống phát tín hiệu cảnh báo Kế toán trước khi giá thuê tự động chuyển sang Giai đoạn mới:
+      </p>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:var(--sp-3);">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="color:oklch(0.55 0.14 85);">🟠 Sắp Tăng Giá (Báo trước)</label>
+          <input type="number" class="form-input mono" value="60" placeholder="Số ngày báo trước">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="color:var(--alert-red);">🔴 Đã Đến Mốc Tăng Giá (Cần chốt SAP)</label>
+          <input type="number" class="form-input mono" value="15" placeholder="Số ngày khẩn cấp">
+        </div>
+      </div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm" onclick="closeModal('alert-config-modal')">Hủy</button>
+      <button class="btn btn-sm btn-primary" onclick="saveAlertConfig()">Lưu Cấu Hình Cảnh Báo</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXCEL EXPORT MODAL -->
+<div class="modal-backdrop" id="excel-export-modal">
+  <div class="modal-card">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;">Xuất Báo Cáo Excel (FR-8)</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('excel-export-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body">
+      <p style="font-size:var(--fs-xs); color:var(--c-text-muted); margin-bottom:var(--sp-4);">
+        File Excel xuất ra đúng định dạng template công ty cung cấp để Kế toán xử lý upload SAP:
+      </p>
+      <div style="background:var(--c-bg); border:1px solid var(--c-border); padding:var(--sp-3); border-radius:var(--radius-sm); font-size:var(--fs-xs);" class="mono">
+        ✓ Cột A: Mã Hợp Đồng<br>
+        ✓ Cột B: Địa Chỉ Mặt Bằng<br>
+        ✓ Cột C: Giá Thuê / Tháng<br>
+        ✓ Cột D: Ngày Tính Tiền
+      </div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm" onclick="closeModal('excel-export-modal')">Hủy</button>
+      <button class="btn btn-sm btn-primary" onclick="triggerToast('Đã tải xuống file HopDong_Template_VinhHoa.xlsx'); closeModal('excel-export-modal');">Tải Về File Excel</button>
+</div>
+
+<!-- MODAL VERSION HISTORY (DIFF VIEWER) -->
+<div class="modal-backdrop" id="version-history-modal">
+  <div class="modal-card" style="max-width:640px;">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;">Lịch Sử Chỉnh Sửa Hồ Sơ Mặt Bằng</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('version-history-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body">
+      <p style="font-size:var(--fs-xs); color:var(--c-text-muted); margin-bottom:var(--sp-4);">
+        Hiển thị thay đổi chi tiết giữa các phiên bản sửa đổi gần đây.
+      </p>
+      
+      <!-- Rich Diff History Card -->
+      <div id="modal-diff-history-container">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm btn-primary" onclick="closeModal('version-history-modal')">Đóng Modal</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 6: CREATE CONTRACT MODAL FOR KẾ TOÁN (FR-2) -->
+<div class="modal-backdrop" id="create-contract-modal">
+  <div class="modal-card" style="max-width:680px;">
+    <div class="modal-card-header">
+      <h3 style="font-family:var(--font-display); font-size:var(--fs-lg); text-transform:uppercase;">Tạo Hợp Đồng Thuê Mới (FR-2 &mdash; Quyền Kế Toán)</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('create-contract-modal')">&#10005;</button>
+    </div>
+    <div class="modal-card-body">
+      <div style="background:var(--c-accent-subtle); border:1px solid var(--c-accent); padding:var(--sp-3); border-radius:var(--radius-sm); font-size:var(--fs-xs); margin-bottom:var(--sp-4);">
+        ℹ️ Kế toán có quyền khởi tạo hồ sơ hợp đồng chính thức, đính kèm file PDF ký kết và thiết lập các giai đoạn giá thuê (FR-2 &amp; FR-2.2).
+      </div>
+      
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+        <div class="form-group">
+          <label class="form-label">Mã Hợp Đồng Mới (Required)</label>
+          <input type="text" class="form-input mono" id="new-con-code" value="HD-2026-0250">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chọn Hồ Sơ Mặt Bằng</label>
+          <select class="form-select" id="new-con-property">
+            <option>123 Nguyễn Huệ, Phường Bến Nghé, Quận 1</option>
+            <option>45 Lê Lợi, Phường Bến Thành, Quận 1</option>
+            <option selected>456 Trần Hưng Đạo, Phường Cầu Kho, Quận 1</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+        <div class="form-group">
+          <label class="form-label">Tên Bên Thuê</label>
+          <input type="text" class="form-input" id="new-con-tenant" value="Công Ty Cổ Phần Vinh Hoa">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Họ Tên Chủ Cho Thuê</label>
+          <input type="text" class="form-input" id="new-con-owner" value="Ông Nguyễn Văn Phát">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4);">
+        <div class="form-group">
+          <label class="form-label">Ngày Bắt Đầu HĐ</label>
+          <input type="text" class="form-input mono" id="new-con-start" value="01/05/2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ngày Kết Thúc HĐ</label>
+          <input type="text" class="form-input mono" id="new-con-end" value="30/04/2029">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bắt Đầu Tính Tiền</label>
+          <input type="text" class="form-input mono" id="new-con-rent-start" value="01/06/2026">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+        <div class="form-group">
+          <label class="form-label">Nghĩa Vụ Kê Khai Thuế</label>
+          <select class="form-select" id="new-con-tax">
+            <option selected>Bên thuê chịu trách nhiệm kê khai &amp; nộp</option>
+            <option>Chủ nhà tự kê khai &amp; nộp</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Giá Thuê Giai Đoạn 1 (/Tháng)</label>
+          <input type="text" class="form-input mono" id="new-con-price" value="50,000,000 VND">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Đính Kèm File PDF Signed (Kế toán lưu trữ)</label>
+        <div style="border:1px dashed var(--c-border); padding:var(--sp-4); text-align:center; border-radius:var(--radius-sm); background:var(--c-bg); font-size:var(--fs-xs);">
+          📄 HD-2026-0250-signed.pdf (12.4 MB) &bull; <span style="color:var(--c-accent); cursor:pointer;">Thay đổi file</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-card-footer">
+      <button class="btn btn-sm" onclick="closeModal('create-contract-modal')">Hủy</button>
+      <button class="btn btn-sm btn-primary" onclick="submitContractByKetoan()">✓ Xác Nhận Tạo Hợp Đồng (Kế Toán)</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+let currentRole = 'Site';
+let apexChartInstance = null;
+
+// ROLE PERMISSION MATRIX & NAVIGATION PERMISSIONS
+const rolePermissions = {
+  'Site': {
+    navProperties: true,
+    navWizard: true,
+    navContracts: false,
+    navPayments: false,
+    navUsers: false,
+    canEditProperty: false, // Locked under BR-1
+    canAddContractPrice: false,
+    canConfigAlerts: false,
+    dashboardTitle: 'Dashboard Quản Lý Khởi Tạo Mặt Bằng (Site)',
+    dashboardSub: 'Bộ phận Site theo dõi tiến độ khởi tạo mặt bằng vật lý & upload PDF Hợp đồng (FR-1)',
+    bannerDesc: 'Bạn có quyền khởi tạo hồ sơ mặt bằng và upload file PDF. Hồ sơ sau khi xác nhận sẽ KHÓA QUYỀN SỬA (BR-1).'
+  },
+  'Kế toán': {
+    navProperties: true,
+    navWizard: true, // Kế toán also has property creation & OCR rights
+    navContracts: true,
+    navPayments: true, // Access to Payment Processing & SAP Export
+    navUsers: false,
+    canEditProperty: true, // Kế toán updates rent data
+    canAddContractPrice: true,
+    canConfigAlerts: false,
+    dashboardTitle: 'Dashboard Quản Lý Giá Thuê & Đối Soát SAP (Kế Toán)',
+    dashboardSub: 'Bộ phận Kế toán quản lý các giai đoạn điều chỉnh giá thuê trực tiếp, khởi tạo mặt bằng & đối soát dữ liệu SAP (FR-1, FR-2 & FR-8)',
+    bannerDesc: 'Bạn có toàn quyền khởi tạo hồ sơ mặt bằng mới (OCR PDF), tạo hợp đồng thuê, quản lý đợt thanh toán & xuất báo cáo Excel SAP.'
+  },
+  'Legal': {
+    navProperties: false, // Hidden for Legal
+    navWizard: false,     // Hidden for Legal
+    navContracts: true,
+    navPayments: false,
+    navUsers: false,
+    canEditProperty: false,
+    canAddContractPrice: false,
+    canConfigAlerts: true, // Legal sets alert thresholds
+    dashboardTitle: 'Dashboard Cảnh Báo Thời Hạn & Pháp Lý (Legal)',
+    dashboardSub: 'Bộ phận Pháp lý theo dõi sát 3 mức cảnh báo hết hạn (Đỏ/Vàng/Xanh) để chuẩn bị hồ sơ đàm phán lại (FR-4)',
+    bannerDesc: 'Bạn có quyền theo dõi hạn hợp đồng, nhận cảnh báo 3 mức Đỏ/Vàng/Xanh & cài đặt số ngày cảnh báo (FR-4).'
+  },
+  'Admin': {
+    navProperties: true,
+    navWizard: true,
+    navContracts: true,
+    navPayments: true,
+    navUsers: true,
+    canEditProperty: true,
+    canAddContractPrice: true,
+    canConfigAlerts: true,
+    dashboardTitle: 'Dashboard Quản Trị Hệ Thống Operations (Admin)',
+    dashboardSub: 'Quản trị viên toàn quyền cấu hình phân quyền người dùng, giám sát nhật ký hoạt động & dữ liệu toàn hệ thống (FR-6)',
+    bannerDesc: 'Bạn có toàn quyền truy cập tất cả các tính năng, danh mục & quản lý tài khoản người dùng.'
+  }
+};
+
+function renderApexChart() {
+  const chartEl = document.getElementById('apex-dashboard-chart');
+  if (!chartEl) return;
+
+  const options = {
+    chart: {
+      type: 'bar',
+      height: 220,
+      toolbar: { show: false },
+      fontFamily: 'Source Sans 3, sans-serif'
+    },
+    colors: ['#C25E00'],
+    plotOptions: {
+      bar: { borderRadius: 4, columnWidth: '50%' }
+    },
+    dataLabels: { enabled: false },
+    stroke: { show: true, width: 2, colors: ['transparent'] },
+    series: [{
+      name: 'Số Hợp Đồng',
+      data: [18, 24, 20, 32, 28, 35, 22, 15, 10, 8, 6, 4]
+    }],
+    xaxis: {
+      categories: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    yaxis: { labels: { style: { colors: '#64748B' } } },
+    grid: { borderColor: '#E2E8F0', strokeDashArray: 3 },
+    tooltip: { theme: 'light' }
+  };
+
+  if (apexChartInstance) {
+    apexChartInstance.destroy();
+  }
+  apexChartInstance = new ApexCharts(chartEl, options);
+  apexChartInstance.render();
+}
+
+function updateDashboardForRole(role) {
+  const config = rolePermissions[role];
+  document.getElementById('dashboard-role-title').innerText = config.dashboardTitle;
+  document.getElementById('dashboard-role-sub').innerText = config.dashboardSub;
+  document.getElementById('banner-role-name').innerText = role;
+  document.getElementById('banner-role-desc').innerText = config.bannerDesc;
+
+  const statGrid = document.getElementById('dashboard-stat-grid');
+  
+  if (role === 'Site') {
+    statGrid.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-card-label">Họ Sơ Khởi Tạo (Site)</div>
+        <div class="stat-card-value">142</div>
+        <div class="stat-card-sub">▲ +8 hồ sơ trong tháng</div>
+      </div>
+      <div class="stat-card alert-green">
+        <div class="stat-card-label">Đã Quét OCR PDF</div>
+        <div class="stat-card-value" style="color: var(--alert-green);">138</div>
+        <div class="stat-card-sub">Trích xuất tự động thành công (97%)</div>
+      </div>
+      <div class="stat-card alert-yellow">
+        <div class="stat-card-label">Chờ Kế Toán Tiếp Nhận</div>
+        <div class="stat-card-value" style="color: oklch(0.55 0.14 85);">4</div>
+        <div class="stat-card-sub">Chờ bổ sung bảng giá</div>
+      </div>
+      <div class="stat-card alert-red">
+        <div class="stat-card-label">Khóa Sửa Theo BR-1</div>
+        <div class="stat-card-value" style="color: var(--alert-red);">142</div>
+        <div class="stat-card-sub">Tài khoản Site không được tự ý chỉnh sửa</div>
+      </div>
+    `;
+  } else if (role === 'Kế toán') {
+    statGrid.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-card-label">Hợp Đồng Đang Quản Lý</div>
+        <div class="stat-card-value">247</div>
+        <div class="stat-card-sub">Cần quản lý bảng giá giai đoạn</div>
+      </div>
+      <div class="stat-card alert-green">
+        <div class="stat-card-label">Đã Cập Nhật Bảng Giá</div>
+        <div class="stat-card-value" style="color: var(--alert-green);">220</div>
+        <div class="stat-card-sub">Giai đoạn giá thuê chính xác</div>
+      </div>
+      <div class="stat-card alert-yellow">
+        <div class="stat-card-label">Đến Hạn Điều Chỉnh Giá</div>
+        <div class="stat-card-value" style="color: oklch(0.55 0.14 85);">18</div>
+        <div class="stat-card-sub">Cần nhập tay đợt giá mới (FR-2.2)</div>
+      </div>
+      <div class="stat-card alert-red">
+        <div class="stat-card-label">Xuất Báo Cáo SAP (FR-8)</div>
+        <div class="stat-card-value" style="color: var(--alert-red);">9</div>
+        <div class="stat-card-sub">Chưa kết xuất file offline Excel</div>
+      </div>
+    `;
+  } else if (role === 'Legal') {
+    statGrid.innerHTML = `
+      <div class="stat-card alert-green">
+        <div class="stat-card-label">Mức Xanh (>90 ngày)</div>
+        <div class="stat-card-value" style="color: var(--alert-green);">183</div>
+        <div class="stat-card-sub">An toàn thời hạn (74.1%)</div>
+      </div>
+      <div class="stat-card alert-yellow">
+        <div class="stat-card-label">Mức Vàng (30-90 ngày)</div>
+        <div class="stat-card-value" style="color: oklch(0.55 0.14 85);">48</div>
+        <div class="stat-card-sub">Chuẩn bị hồ sơ đàm phán lại</div>
+      </div>
+      <div class="stat-card alert-red">
+        <div class="stat-card-label">Mức Đỏ (<30 ngày)</div>
+        <div class="stat-card-value" style="color: var(--alert-red);">16</div>
+        <div class="stat-card-sub">⚠ Cảnh báo khẩn - Cần gia hạn</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-label">Cấu Hình Ngưỡng Cảnh Báo</div>
+        <div class="stat-card-value">FR-4</div>
+        <div class="stat-card-sub">Cài đặt số ngày cảnh báo 2FA</div>
+      </div>
+    `;
+  } else {
+    // Admin
+    statGrid.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-card-label">Tổng Hợp Đồng Hệ Thống</div>
+        <div class="stat-card-value">247</div>
+        <div class="stat-card-sub">Đang lưu giữ dữ liệu</div>
+      </div>
+      <div class="stat-card alert-green">
+        <div class="stat-card-label">Tài Khoản Hoạt Động</div>
+        <div class="stat-card-value" style="color: var(--alert-green);">34</div>
+        <div class="stat-card-sub">4 nhóm vaitrò RBAC</div>
+      </div>
+      <div class="stat-card alert-yellow">
+        <div class="stat-card-label">Nhật Ký Thay Đổi (BR-3)</div>
+        <div class="stat-card-value" style="color: oklch(0.55 0.14 85);">1,840</div>
+        <div class="stat-card-sub">Nhật ký chỉnh sửa ghi nhận đầy đủ</div>
+      </div>
+      <div class="stat-card alert-red">
+        <div class="stat-card-label">Cảnh Báo Hệ Thống</div>
+        <div class="stat-card-value" style="color: var(--alert-red);">0</div>
+        <div class="stat-card-sub">Không có sự cố phân quyền</div>
+      </div>
+    `;
+  }
+}
+
+function switchRole(role) {
+  currentRole = role;
+  document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+
+  const roleKeyMap = {
+    'Site': 'site',
+    'Kế toán': 'ketoan',
+    'Legal': 'legal',
+    'Admin': 'admin'
+  };
+  const key = roleKeyMap[role] || 'site';
+  const targetBtn = document.getElementById('role-btn-' + key);
+  if (targetBtn) targetBtn.classList.add('active');
+
+  document.getElementById('user-role-display').innerText = 'Role: ' + role;
+  document.getElementById('user-name-display').innerText = 'Nguyễn Văn ' + role;
+  document.getElementById('user-avatar').innerText = role.charAt(0);
+
+  const config = rolePermissions[role];
+
+  // 1. ENFORCE STRICT NAVIGATION VISIBILITY PER ROLE (Fix User Complaint)
+  document.getElementById('nav-properties').style.display = config.navProperties ? 'flex' : 'none';
+  document.getElementById('nav-property-wizard').style.display = config.navWizard ? 'flex' : 'none';
+  document.getElementById('nav-contracts').style.display = config.navContracts ? 'flex' : 'none';
+  document.getElementById('nav-payments').style.display = config.navPayments ? 'flex' : 'none';
+
+  // Admin Only Section
+  document.getElementById('admin-nav-label').style.display = (role === 'Admin') ? 'block' : 'none';
+  document.getElementById('admin-nav-list').style.display = (role === 'Admin') ? 'block' : 'none';
+
+  // 2. ENFORCE ACTION BUTTON VISIBILITY
+  document.querySelectorAll('.admin-only').forEach(el => {
+    if (el.id !== 'admin-nav-label' && el.id !== 'admin-nav-list') {
+      el.style.display = (role === 'Admin') ? 'block' : 'none';
+    }
+  });
+
+  document.querySelectorAll('.ketoan-only').forEach(el => {
+    el.style.display = (role === 'Kế toán' || role === 'Admin') ? 'inline-flex' : 'none';
+  });
+
+  document.querySelectorAll('.legal-only').forEach(el => {
+    el.style.display = (role === 'Legal' || role === 'Admin') ? 'inline-flex' : 'none';
+  });
+
+  document.querySelectorAll('.site-only').forEach(el => {
+    el.style.display = (role === 'Site' || role === 'Admin') ? 'inline-flex' : 'none';
+  });
+
+  // 3. PROPERTY EDIT LOCK BUTTON STYLING (BR-1)
+  document.querySelectorAll('.edit-property-btn').forEach(el => {
+    if (role === 'Site') {
+      el.innerText = 'Khóa Sửa (BR-1)';
+      el.style.opacity = '0.5';
+      el.style.cursor = 'not-allowed';
+    } else {
+      el.innerText = 'Sửa Hồ Sơ (Kế toán)';
+      el.style.opacity = '1';
+      el.style.cursor = 'pointer';
+    }
+  });
+
+  // 4. UPDATE DASHBOARD STAT CARDS & TITLES
+  updateDashboardForRole(role);
+
+  // 5. REDIRECT IF CURRENT VIEW IS UNALLOWED FOR THIS ROLE
+  const activeViewEl = document.querySelector('.view-pane.active');
+  const activeViewId = activeViewEl ? activeViewEl.id : 'view-dashboard';
+
+  if (activeViewId === 'view-properties' && !config.navProperties) {
+    switchView('view-dashboard');
+  } else if (activeViewId === 'view-property-wizard' && !config.navWizard) {
+    switchView('view-dashboard');
+  } else if (activeViewId === 'view-contracts' && !config.navContracts) {
+    switchView('view-dashboard');
+  } else if (activeViewId === 'view-users' && !config.navUsers) {
+    switchView('view-dashboard');
+  }
+
+  triggerToast('Đã chuyển sang vai trò: ' + role + ' (Đã áp dụng giới hạn phân quyền)');
+}
+
+function handleEditPropertyClick(code) {
+  if (currentRole === 'Site') {
+    triggerToast('⛔ Quy định BR-1: Tài khoản Site bị KHÓA QUYỀN SỬA hồ sơ sau khi tạo! Chỉ Kế toán mới có quyền cập nhật.');
+  } else {
+    triggerToast('Mở form sửa hồ sơ mặt bằng ' + code + ' dành cho Kế toán');
+  }
+}
+
+function switchView(viewId) {
+  const config = rolePermissions[currentRole];
+
+  // BLOCK UNAUTHORIZED DIRECT NAVIGATION ATTEMPTS
+  if (viewId === 'view-properties' && !config.navProperties) {
+    triggerToast('⛔ Vai trò ' + currentRole + ' không có quyền truy cập Hồ Sơ Mặt Bằng!');
+    return;
+  }
+  if (viewId === 'view-property-wizard' && !config.navWizard) {
+    triggerToast('⛔ Vai trò ' + currentRole + ' không có quyền Khởi Tạo Mặt Bằng / OCR!');
+    return;
+  }
+  if (viewId === 'view-contracts' && !config.navContracts) {
+    triggerToast('⛔ Vai trò ' + currentRole + ' không có quyền truy cập Danh Sách Hợp Đồng!');
+    return;
+  }
+  if (viewId === 'view-payments' && !config.navPayments) {
+    triggerToast('⛔ Vai trò ' + currentRole + ' không có quyền truy cập Tiến Độ Thanh Toán & SAP!');
+    return;
+  }
+  if (viewId === 'view-users' && !config.navUsers) {
+    triggerToast('⛔ Vai trò ' + currentRole + ' không có quyền Quản Lý Người Dùng!');
+    return;
+  }
+
+  document.querySelectorAll('.view-pane').forEach(v => v.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  const activeNav = document.getElementById('nav-' + viewId.replace('view-', ''));
+  if (activeNav) activeNav.classList.add('active');
+
+  const titles = {
+    'view-dashboard': 'Dashboard Tổng Quan',
+    'view-properties': 'Hồ Sơ Mặt Bằng',
+    'view-contracts': 'Danh Sách Hợp Đồng',
+    'view-contract-detail': 'Trang Chi Tiết Hợp Đồng',
+    'view-payments': 'Tiến Độ Thanh Toán & SAP',
+    'view-property-wizard': 'Tải Lên PDF & OCR',
+    'view-users': 'Quản Lý Người Dùng',
+    'view-login': 'Màn Hình Đăng Nhập'
+  };
+  document.getElementById('breadcrumb-title').innerText = titles[viewId] || 'Hệ Thống';
+
+  if (viewId === 'view-dashboard') {
+    setTimeout(renderApexChart, 100);
+  }
+}
+
+function openDetailPage(code) {
+  document.getElementById('detail-page-code').innerText = code;
+  if (code === 'HD-2026-0198') {
+    document.getElementById('detail-page-alert-badge').className = 'badge badge-red';
+    document.getElementById('detail-page-alert-badge').innerText = '🔴 Mức Đỏ (<30 ngày)';
+    document.getElementById('detail-page-address').innerText = '45 Lê Lợi, Phường Bến Thành, Quận 1, TP.HCM';
+    document.getElementById('detail-page-owner').innerText = 'Trần Thị B — 0908 999 888';
+    document.getElementById('detail-page-dates').innerText = '15/01/2024 — 14/01/2027 (3 Năm)';
+    document.getElementById('detail-page-rent-start').innerText = '15/01/2024';
+  } else {
+    document.getElementById('detail-page-alert-badge').className = 'badge badge-green';
+    document.getElementById('detail-page-alert-badge').innerText = '🟢 Mức Xanh (>90 ngày)';
+    document.getElementById('detail-page-address').innerText = '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM';
+    document.getElementById('detail-page-owner').innerText = 'Nguyễn Văn A — 0909 123 456';
+    document.getElementById('detail-page-dates').innerText = '01/03/2026 — 28/02/2029 (3 Năm)';
+    document.getElementById('detail-page-rent-start').innerText = '01/04/2026 (Miễn phí 1 tháng đầu)';
+  }
+  switchView('view-contract-detail');
+  setTimeout(() => showDiffDetails(1), 50);
+}
+
+function switchDetailContract(code) {
+  document.getElementById('detail-page-code').innerText = code;
+  if (code === 'HD-2023-0089') {
+    document.getElementById('detail-page-status-tag').innerText = 'Đã hết hạn';
+    document.getElementById('detail-page-alert-badge').className = 'badge badge-neutral';
+    document.getElementById('detail-page-alert-badge').innerText = '📁 Lịch sử cũ (2023-2026)';
+    document.getElementById('detail-page-dates').innerText = '01/03/2023 — 28/02/2026 (3 Năm)';
+    triggerToast('Đã chuyển sang xem dữ liệu Hợp đồng lịch sử cũ: HD-2023-0089');
+  } else if (code === 'HD-2020-0012') {
+    document.getElementById('detail-page-status-tag').innerText = 'Đã hết hạn';
+    document.getElementById('detail-page-alert-badge').className = 'badge badge-neutral';
+    document.getElementById('detail-page-alert-badge').innerText = '📁 Lịch sử cũ (2020-2023)';
+    document.getElementById('detail-page-dates').innerText = '01/03/2020 — 28/02/2023 (3 Năm)';
+    triggerToast('Đã chuyển sang xem dữ liệu Hợp đồng lịch sử cũ: HD-2020-0012');
+  } else {
+    document.getElementById('detail-page-status-tag').innerText = 'Đang hiệu lực';
+    document.getElementById('detail-page-alert-badge').className = 'badge badge-green';
+    document.getElementById('detail-page-alert-badge').innerText = '🟢 Mức Xanh (>90 ngày)';
+    document.getElementById('detail-page-dates').innerText = '01/03/2026 — 28/02/2029 (3 Năm)';
+    triggerToast('Đã chuyển sang Hợp đồng đang hiệu lực hiện tại: HD-2026-0247');
+  }
+}
+
+function getDiffTableHTML(code, author, time, rows, note) {
+  let rowsHTML = rows.map(r => `
+    <tr style="border-bottom:1px solid var(--c-border-subtle);">
+      <td style="padding:10px 14px; font-weight:600; color:var(--c-text); vertical-align:top; font-size:13px; line-height:1.4;">${r.field}</td>
+      <td style="padding:10px 14px; vertical-align:top;">
+        <span class="diff-badge-old" style="font-family:${r.isMono ? 'var(--font-mono)' : 'var(--font-body)'};">${r.oldVal}</span>
+      </td>
+      <td style="padding:10px 4px; text-align:center; color:var(--c-text-muted); vertical-align:top; font-size:13px; font-weight:bold;">&rarr;</td>
+      <td style="padding:10px 14px; vertical-align:top;">
+        <span class="diff-badge-new" style="font-family:${r.isMono ? 'var(--font-mono)' : 'var(--font-body)'};">${r.newVal}</span>
+      </td>
+    </tr>
+  `).join('');
+
+  let noteHTML = note ? `
+    <div style="padding:10px 16px; background:oklch(0.98 0.005 48 / 0.5); border-top:1px solid var(--c-border-subtle); border-left:3px solid var(--c-accent); font-size:12px; color:var(--c-text-secondary); line-height:1.4;">
+      <strong style="color:var(--c-text);">Ghi chú đính kèm:</strong> "${note}"
+    </div>
+  ` : '';
+
+  return `
+    <div class="diff-history-card">
+      <!-- Card Sub Header -->
+      <div class="diff-header-bar">
+        <div style="font-family:var(--font-body); font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.03em; color:var(--c-text);">
+          HỒ SƠ MẶT BẰNG: <span class="mono" style="color:var(--c-accent);">${code}</span>
+        </div>
+        <div style="font-size:12px; color:var(--c-text-muted);">
+          Sửa đổi bởi: <strong style="color:var(--c-text);">${author}</strong> <span style="opacity:0.8;">(${time})</span>
+        </div>
+      </div>
+
+      <!-- Table Body -->
+      <table style="width:100%; border-collapse:collapse; text-align:left; table-layout:fixed;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--c-border-subtle); background:oklch(0.975 0.003 250);">
+            <th style="padding:8px 14px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--c-text-muted); width:28%;">TRƯỜNG THAY ĐỔI</th>
+            <th style="padding:8px 14px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--c-text-muted); width:33%;">GIÁ TRỊ CŨ</th>
+            <th style="padding:8px 4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--c-text-muted); text-align:center; width:6%;">&rarr;</th>
+            <th style="padding:8px 14px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--c-text-muted); width:33%;">GIÁ TRỊ MỚI</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHTML}
+        </tbody>
+      </table>
+      ${noteHTML}
+    </div>
+  `;
+}
+
+function showDiffDetails(id) {
+  const display = document.getElementById('diff-detail-display');
+  if (event && event.currentTarget) {
+    document.querySelectorAll('.timeline-event').forEach(el => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  const code = document.getElementById('detail-page-code').innerText || 'HD-2026-0247';
+
+  if (id === 1) {
+    display.innerHTML = getDiffTableHTML(
+      code,
+      'Trần Kế Toán',
+      '19/08/2026 09:15',
+      [
+        { field: 'Diện tích', oldVal: '100 m²', newVal: '120 m²', isMono: true },
+        { field: 'Quận/Huyện', oldVal: 'Q5', newVal: 'Quận 5', isMono: false },
+        { field: 'Giá thuê giai đoạn 2', oldVal: '46,000,000 VND', newVal: '48,000,000 VND', isMono: true }
+      ],
+      'Kế toán đính chính diện tích và quận huyện khớp chính xác với bản PDF hợp đồng giấy đã ký ngoại tuyến (do Site nhập nháp ban đầu bị viết tắt).'
+    );
+  } else if (id === 2) {
+    display.innerHTML = getDiffTableHTML(
+      code,
+      'Trần Thị Site',
+      '15/08/2026 14:30',
+      [
+        { field: 'SĐT Chủ Cho Thuê', oldVal: '0909 111 222', newVal: '0909 123 456', isMono: true },
+        { field: 'Địa chỉ chi tiết', oldVal: '456 Trần Hưng Đạo, P. Cầu Kho', newVal: '456 Trần Hưng Đạo, Phường Cầu Kho, Quận 1, TP.HCM', isMono: false }
+      ],
+      'Cập nhật SĐT chủ nhà chính chủ & chuẩn hóa địa chỉ đầy đủ theo giấy tờ chứng nhận quyền sử dụng đất.'
+    );
+  } else {
+    display.innerHTML = getDiffTableHTML(
+      code,
+      'Nguyễn Văn Site',
+      '01/03/2026 10:00',
+      [
+        { field: 'Khởi tạo hồ sơ', oldVal: 'Chưa khởi tạo', newVal: 'Đã OCR & Upload PDF Gốc (FR-1)', isMono: false },
+        { field: 'Bắt đầu tính tiền', oldVal: 'Chưa có', newVal: '01/04/2026 (Miễn phí 1 tháng)', isMono: true }
+      ],
+      'Khởi tạo hồ sơ mặt bằng ban đầu từ kết quả bóc tách OCR file scan PDF Hợp đồng.'
+    );
+  }
+}
+
+function openVersionHistoryModal(code) {
+  const container = document.getElementById('modal-diff-history-container');
+  container.innerHTML = getDiffTableHTML(
+    code || 'HD-1001',
+    'Trần Kế Toán',
+    '19/08/2026 09:15',
+    [
+      { field: 'Diện tích', oldVal: '100 m²', newVal: '120 m²', isMono: true },
+      { field: 'Quận/Huyện', oldVal: 'Q5', newVal: 'Quận 5', isMono: false }
+    ],
+    'Kế toán đính chính diện tích và quận huyện khớp chính xác với bản PDF hợp đồng giấy đã ký ngoại tuyến (do Site nhập nháp ban đầu bị viết tắt).'
+  );
+  openModal('version-history-modal');
+}
+
+function goToWizardStep(step) {
+  document.getElementById('wiz-step-1-content').style.display = (step === 1) ? 'block' : 'none';
+  document.getElementById('wiz-step-2-content').style.display = (step === 2) ? 'block' : 'none';
+  document.getElementById('wiz-step-3-content').style.display = (step === 3) ? 'block' : 'none';
+
+  for (let i = 1; i <= 3; i++) {
+    const ind = document.getElementById('wiz-step-' + i + '-indicator');
+    const badge = document.getElementById('wiz-step-' + i + '-badge');
+    if (i <= step) {
+      ind.style.opacity = '1';
+      badge.style.background = (i === step) ? 'var(--c-accent)' : 'var(--alert-green)';
+      badge.style.color = 'white';
+      badge.innerText = (i < step) ? '✓' : i.toString();
+    } else {
+      ind.style.opacity = '0.5';
+      badge.style.background = 'var(--c-border)';
+      badge.style.color = 'var(--c-text-muted)';
+      badge.innerText = i.toString();
+    }
+  }
+
+  const line1 = document.getElementById('wiz-line-1');
+  const line2 = document.getElementById('wiz-line-2');
+  if (line1) line1.style.background = (step >= 2) ? 'var(--alert-green)' : 'var(--c-border)';
+  if (line2) line2.style.background = (step >= 3) ? 'var(--alert-green)' : 'var(--c-border)';
+
+  if (step === 3) {
+    document.getElementById('sum-ma-hd').innerText = document.getElementById('input-ma-hd').value;
+    document.getElementById('sum-ben-thue').innerText = document.getElementById('input-ben-thue').value;
+    document.getElementById('sum-dia-chi').innerText = document.getElementById('input-dia-chi').value;
+    document.getElementById('sum-dien-tich').innerText = document.getElementById('input-dien-tich').value;
+    document.getElementById('sum-chu-nha').innerText = document.getElementById('input-chu-nha').value;
+    document.getElementById('sum-lien-he').innerText = document.getElementById('input-lien-he').value;
+    document.getElementById('sum-thoi-han').innerText = document.getElementById('input-ngay-bd').value + ' — ' + document.getElementById('input-ngay-kt').value;
+    document.getElementById('sum-tinh-tien').innerText = document.getElementById('input-ngay-tinh-tien').value;
+    document.getElementById('sum-gia').innerText = document.getElementById('input-gia-gdoan-1').value;
+    document.getElementById('sum-thue').innerText = document.getElementById('input-thue').value;
+  }
+}
+
+function simulateOCR() {
+  const container = document.getElementById('ocr-progress-container');
+  const bar = document.getElementById('ocr-progress-bar');
+  const txt = document.getElementById('ocr-percentage');
+  container.style.display = 'block';
+
+  let progress = 0;
+  triggerToast('Đang khởi động AI OCR quét file PDF...');
+  
+  const timer = setInterval(() => {
+    progress += 20;
+    bar.style.width = progress + '%';
+    txt.innerText = progress + '%';
+    
+    if (progress >= 100) {
+      clearInterval(timer);
+      setTimeout(() => {
+        container.style.display = 'none';
+        bar.style.width = '0%';
+        goToWizardStep(2);
+        triggerToast('Đã bóc tách dữ liệu AI OCR thành công! Vui lòng rà soát 14 trường dữ liệu.');
+      }, 300);
+    }
+  }, 150);
+}
+
+function submitProperty() {
+  triggerToast('Đã khởi tạo hồ sơ mặt bằng mới thành công!');
+  if (currentRole === 'Site') {
+    triggerToast('Quy định BR-1: Tài khoản Site đã bị KHÓA QUYỀN CHỈNH SỬA đối với hồ sơ này!');
+  }
+  switchView('view-properties');
+}
+
+function addPricePhaseRow() {
+  const tbody = document.getElementById('detail-page-phases-tbody');
+  const count = tbody.querySelectorAll('tr').length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="color:var(--c-text-muted);">${count}</td>
+    <td><input type="text" class="form-input mono" value="01/03/2029"></td>
+    <td><input type="text" class="form-input mono" value="28/02/2030"></td>
+    <td><input type="text" class="form-input mono" value="55,000,000" style="text-align:right;"></td>
+    <td class="ketoan-only"><button class="btn btn-sm btn-ghost" onclick="this.closest('tr').remove(); triggerToast('Đã xóa giai đoạn');" style="color:var(--c-danger);">&#128465;</button></td>
+  `;
+  tbody.appendChild(tr);
+  triggerToast('Đã thêm giai đoạn giá mới (BR-2)');
+}
+
+function openQuickViewModal(code) {
+  document.getElementById('qv-code').innerText = code;
+  if (code === 'HD-2026-0198') {
+    document.getElementById('qv-badge').className = 'badge badge-red';
+    document.getElementById('qv-badge').innerText = '🔴 Mức Đỏ (<30 ngày)';
+    document.getElementById('qv-address').innerText = '45 Lê Lợi, Q.3, TP.HCM';
+    document.getElementById('qv-owner').innerText = 'Trần Thị B — 0908 999 888';
+    document.getElementById('qv-dates').innerText = '15/01/2024 — 14/01/2027';
+  } else {
+    document.getElementById('qv-badge').className = 'badge badge-green';
+    document.getElementById('qv-badge').innerText = '🟢 Mức Xanh (>90 ngày)';
+    document.getElementById('qv-address').innerText = '123 Nguyễn Huệ, Q.1, TP.HCM';
+    document.getElementById('qv-owner').innerText = 'Nguyễn Văn A — 0909 123 456';
+    document.getElementById('qv-dates').innerText = '01/03/2026 — 28/02/2029';
+  }
+  document.getElementById('quick-view-modal').classList.add('active');
+}
+
+function openOtpModal(code) {
+  document.getElementById('otp-modal').classList.add('active');
+}
+
+function openPdfModal(filename) {
+  document.getElementById('pdf-modal-filename').innerText = filename;
+  document.getElementById('pdf-modal').classList.add('active');
+}
+
+function openAlertConfigModal(code) {
+  document.getElementById('modal-contract-code').innerText = code;
+  document.getElementById('alert-config-modal').classList.add('active');
+}
+
+function openExcelExportModal() {
+  document.getElementById('excel-export-modal').classList.add('active');
+}
+
+function openCreateContractModal() {
+  document.getElementById('create-contract-modal').classList.add('active');
+}
+
+function submitContractByKetoan() {
+  const code = document.getElementById('new-con-code').value || 'HD-2026-0250';
+  triggerToast('✓ Kế toán đã khởi tạo hợp đồng thuê mới ' + code + ' thành công (FR-2)!');
+  closeModal('create-contract-modal');
+  switchView('view-contracts');
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('active');
+}
+
+function saveAlertConfig() {
+  triggerToast('Legal đã lưu cấu hình cảnh báo!');
+  closeModal('alert-config-modal');
+}
+
+function addWizardPriceRow() {
+  const tbody = document.querySelector('#wizard-price-table tbody');
+  if (!tbody) return;
+  const count = tbody.querySelectorAll('tr').length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${count}</td>
+    <td><input type="text" class="form-input mono" value="01/04/2029" style="padding:4px 8px; font-size:12px;"></td>
+    <td><input type="text" class="form-input mono" value="31/03/2030" style="padding:4px 8px; font-size:12px;"></td>
+    <td><input type="text" class="form-input mono" value="60,000,000" style="padding:4px 8px; font-size:12px; color:var(--c-accent); font-weight:600;"></td>
+    <td style="text-align:center;"><button class="btn btn-sm btn-ghost" style="color:var(--alert-red); padding:2px 6px;" onclick="this.closest('tr').remove()">🗑️ Xóa</button></td>
+  `;
+  tbody.appendChild(tr);
+  triggerToast('✓ Đã thêm 1 giai đoạn giá mới vào bảng rà soát!');
+}
+
+function toggleSelectAllPayments(checked) {
+  document.querySelectorAll('.pay-chk:not([disabled])').forEach(chk => {
+    chk.checked = checked;
+  });
+  updatePaymentSummary();
+}
+
+function updatePaymentSummary() {
+  const selected = document.querySelectorAll('.pay-chk:checked');
+  const countEl = document.getElementById('pay-selected-count');
+  if (countEl) countEl.innerText = selected.length + ' Đợt Hợp Đồng';
+}
+
+function triggerSapBulkExport() {
+  const selected = document.querySelectorAll('.pay-chk:checked');
+  if (selected.length === 0) {
+    triggerToast('⚠️ Vui lòng tích chọn ít nhất 1 đợt thanh toán để xuất file SAP!');
+    return;
+  }
+  triggerToast('📄 Đã kết xuất thành công ' + selected.length + ' đợt thanh toán ra file Excel SAP chuẩn (FR-8)!');
+}
+
+function triggerToast(msg) {
+  const wrap = document.getElementById('toast-wrap');
+  const toast = document.createElement('div');
+  toast.className = 'toast-msg';
+  toast.innerHTML = '<span>ℹ</span> ' + msg;
+  wrap.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// Initial state setup
+switchRole('Site');
+setTimeout(renderApexChart, 200);
+</script>
+</body>
+</html>
